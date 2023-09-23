@@ -105,8 +105,10 @@ export class ZetaSqlApi {
         const featuresForVersion = await this.zetaSql.LanguageOptions.getLanguageFeaturesForVersion(LanguageVersion.VERSION_CURRENT);
         featuresForVersion.forEach(f => options.enableLanguageFeature(f));
         options.enableLanguageFeature(LanguageFeature.FEATURE_NAMED_ARGUMENTS);
+        options.enableLanguageFeature(LanguageFeature.FEATURE_JSON_ARRAY_FUNCTIONS);
         options.enableLanguageFeature(LanguageFeature.FEATURE_JSON_TYPE);
         options.enableLanguageFeature(LanguageFeature.FEATURE_JSON_VALUE_EXTRACTION_FUNCTIONS);
+        options.enableLanguageFeature(LanguageFeature.FEATURE_V_1_1_WITH_ON_SUBQUERY);
         options.enableLanguageFeature(LanguageFeature.FEATURE_INTERVAL_TYPE);
         options.enableLanguageFeature(LanguageFeature.FEATURE_CBRT_FUNCTIONS);
         options.enableLanguageFeature(LanguageFeature.FEATURE_V_1_4_GROUPING_SETS);

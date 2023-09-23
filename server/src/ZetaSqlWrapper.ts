@@ -1,5 +1,6 @@
 import { TypeKind } from '@fivetrandevelopers/zetasql';
 import { ErrorMessageMode } from '@fivetrandevelopers/zetasql/lib/types/zetasql/ErrorMessageMode';
+import { _zetasql_FunctionEnums_Mode } from '@fivetrandevelopers/zetasql/lib/types/zetasql/FunctionEnums';
 import { FunctionProto } from '@fivetrandevelopers/zetasql/lib/types/zetasql/FunctionProto';
 import { ParseLocationRecordType } from '@fivetrandevelopers/zetasql/lib/types/zetasql/ParseLocationRecordType';
 import { SignatureArgumentKind } from '@fivetrandevelopers/zetasql/lib/types/zetasql/SignatureArgumentKind';
@@ -16,7 +17,6 @@ import { SqlHeaderAnalyzer } from './SqlHeaderAnalyzer';
 import { TableDefinition } from './TableDefinition';
 import { ZetaSqlApi } from './ZetaSqlApi';
 import { ParseResult, ZetaSqlParser } from './ZetaSqlParser';
-import { _zetasql_FunctionEnums_Mode } from '@fivetrandevelopers/zetasql/lib/types/zetasql/FunctionEnums';
 
 export interface KnownColumn {
   name: string;
@@ -346,7 +346,7 @@ export abstract class ZetaSqlWrapper {
       options: {
         parseLocationRecordType: ParseLocationRecordType.PARSE_LOCATION_RECORD_CODE_SEARCH,
 
-        errorMessageMode: ErrorMessageMode.ERROR_MESSAGE_ONE_LINE,
+        errorMessageMode: ErrorMessageMode.ERROR_MESSAGE_WITH_PAYLOAD,
         languageOptions: simpleCatalog.builtinFunctionOptions?.languageOptions,
       },
     });

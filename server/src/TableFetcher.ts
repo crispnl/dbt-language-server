@@ -2,8 +2,8 @@ import { ResolvedOutputColumnProto } from '@fivetrandevelopers/zetasql/lib/types
 import { SimpleColumnProto } from '@fivetrandevelopers/zetasql/lib/types/zetasql/SimpleColumnProto';
 import { DbtDestinationClient } from './DbtDestinationClient';
 import { TableDefinition } from './TableDefinition';
-import { createSimpleColumn } from './utils/ZetaSqlUtils';
 import { ZetaSqlApi } from './ZetaSqlApi';
+import { createSimpleColumn } from './utils/ZetaSqlUtils';
 
 interface TableInformation {
   columns?: SimpleColumnProto[];
@@ -37,7 +37,8 @@ export class TableFetcher {
     const tableName = table.getTableName();
 
     if (dataSetName && tableName) {
-      const metadata = await this.client.getTableMetadata(dataSetName, tableName);
+      const projectName = table.getProjectName();
+      const metadata = await this.client.getTableMetadata(dataSetName, tableName, projectName);
       if (metadata) {
         return {
           columns: metadata.schema.fields.map<ResolvedOutputColumnProto>(f => createSimpleColumn(f.name, this.zetaSqlApi.createType(f))),

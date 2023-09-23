@@ -46,10 +46,12 @@ export class BigQueryClient implements DbtDestinationClient {
     });
   }
 
-  async getTableMetadata(datasetName: string, tableName: string): Promise<Metadata | undefined> {
+  async getTableMetadata(datasetName: string, tableName: string, projectName?: string): Promise<Metadata | undefined> {
     try {
       return await this.executeOperation(async () => {
-        const dataset = this.bigQuery.dataset(datasetName);
+        const dataset = this.bigQuery.dataset(datasetName, {
+          projectId: projectName,
+        });
         const table = dataset.table(tableName);
         const [metadata] = (await table.getMetadata({
           fields: BigQueryClient.JOINED_FIELDS,

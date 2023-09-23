@@ -36,7 +36,7 @@ export class DbtCli {
     stdout: string;
     stderr: string;
   }> {
-    const params = [];
+    const params = ['-f']; // Always compile full-refreshed (TODO: maybe make this an option? could be slower than without -f)
     if (modelName) {
       params.push('-m', `+${slash(modelName)}`);
     }

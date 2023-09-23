@@ -12,7 +12,7 @@ export interface DbtDestinationClient {
 
   getTables(datasetName: string, projectName?: string): Promise<Table[]>;
 
-  getTableMetadata(datasetName: string, tableName: string): Promise<Metadata | undefined>;
+  getTableMetadata(datasetName: string, tableName: string, projectName?: string): Promise<Metadata | undefined>;
 
   getUdf(projectId: string | undefined, dataSetId: string, routineId: string): Promise<Udf[]>;
 

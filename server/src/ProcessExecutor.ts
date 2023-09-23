@@ -22,7 +22,7 @@ export class ProcessExecutor {
         env[k] = envVars[k];
       });
     }
-    const promiseWithChild = promisifiedExec(command, envVars ? { env } : {});
+    const promiseWithChild = promisifiedExec(command, { env });
     const childProcess = promiseWithChild.child;
 
     childProcess.stderr?.on('data', chunk => {
