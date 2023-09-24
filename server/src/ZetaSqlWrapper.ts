@@ -346,7 +346,7 @@ export abstract class ZetaSqlWrapper {
       options: {
         parseLocationRecordType: ParseLocationRecordType.PARSE_LOCATION_RECORD_CODE_SEARCH,
 
-        errorMessageMode: ErrorMessageMode.ERROR_MESSAGE_WITH_PAYLOAD,
+        errorMessageMode: ErrorMessageMode.ERROR_MESSAGE_ONE_LINE,
         languageOptions: simpleCatalog.builtinFunctionOptions?.languageOptions,
       },
     });

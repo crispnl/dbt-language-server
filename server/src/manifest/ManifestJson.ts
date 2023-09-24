@@ -27,6 +27,8 @@ export interface ManifestModel extends ManifestNode {
 export type ManifestMacro = ManifestNode;
 
 export interface ManifestSource extends ManifestNode {
+  database: string;
+  schema: string;
   sourceName: string;
   columns: string[];
 }

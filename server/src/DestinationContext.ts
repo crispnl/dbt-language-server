@@ -127,6 +127,12 @@ export class DestinationContext {
     return this.projectAnalyzeTask.start();
   }
 
+  async analyzeSources(): Promise<void> {
+    this.ensureProjectAnalyzer(this.projectAnalyzer);
+
+    await this.projectAnalyzer.analyzeSources(new AbortController().signal);
+  }
+
   resetCache(): void {
     this.projectAnalyzer?.resetCache();
   }

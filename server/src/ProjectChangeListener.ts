@@ -56,7 +56,12 @@ export class ProjectChangeListener {
 
     // We should reset catalog before compiling the project, because the catalog will start to re-fill during compilation
     this.destinationContext.resetCache();
+
+    // While dbt compiles, we pull remote schemas from all our sources, so we can speed up analysis and
+    // provide hints on currently unreferenced sources.
+    const analyzeSourcesTask = this.analyzeSources();
     const compileResult = await this.dbtCli.compileProject(this.dbtRepository);
+    await analyzeSourcesTask;
     if (compileResult.isOk()) {
       this.updateManifest();
       try {
@@ -99,6 +104,10 @@ export class ProjectChangeListener {
 
   forceCompileAndAnalyzeProject(): void {
     this.debouncedCompileAndAnalyze();
+  }
+
+  async analyzeSources(): Promise<void> {
+    await this.destinationContext.analyzeSources();
   }
 
   /** Analyses model tree, sends diagnostics for the entire tree and returns diagnostics for root model */

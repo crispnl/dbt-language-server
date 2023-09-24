@@ -125,6 +125,8 @@ export class ManifestParser {
           packageName: n.package_name,
           sourceName: n.source_name,
           columns: Object.values(n.columns).map(c => c.name),
+          database: n.database,
+          schema: n.schema,
         }));
     }
     return [];
