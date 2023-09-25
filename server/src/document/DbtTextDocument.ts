@@ -41,13 +41,15 @@ import { areRangesEqual, debounce, getIdentifierRangeAtPosition, getModelPathOrF
 import { DbtDocumentKind } from './DbtDocumentKind';
 import { RefReplacement } from 'dbt-language-server-common';
 
+export interface QueryParseInformationSelectColumn {
+  namePath: string[];
+  rawRange: Range;
+  compiledRange: Range;
+}
+
 export interface QueryParseInformation {
   selects: {
-    columns: {
-      namePath: string[];
-      rawRange: Range;
-      compiledRange: Range;
-    }[];
+    columns: QueryParseInformationSelectColumn[];
     tableAliases: Map<string, string>;
     parseLocationRange: Location;
   }[];

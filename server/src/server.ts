@@ -96,7 +96,8 @@ function createLspServerForProject(
   const dbtDocumentKindResolver = new DbtDocumentKindResolver(dbtRepository);
   const diagnosticGenerator = new DiagnosticGenerator(dbtRepository);
   const jinjaParser = new JinjaParser();
-  const definitionProvider = new DefinitionProvider(dbtRepository, jinjaParser);
+  let server: LspServer | undefined = undefined;
+  const definitionProvider = new DefinitionProvider(dbtRepository, jinjaParser, () => server);
   const signatureHelpProvider = new SignatureHelpProvider();
   const hoverProvider = new HoverProvider();
   const openedDocuments = new Map<string, DbtTextDocument>();
@@ -113,7 +114,7 @@ function createLspServerForProject(
     macroCompilationServer,
   );
 
-  return new LspServer(
+  server = new LspServer(
     connection,
     notificationSender,
     featureFinder,
@@ -135,6 +136,7 @@ function createLspServerForProject(
     projectChangeListener,
     customInitParams.enableSnowflakeSyntaxCheck,
   );
+  return server;
 }
 
 connection.listen();

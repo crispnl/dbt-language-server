@@ -7,6 +7,7 @@ import { QueryParseInformation } from '../document/DbtTextDocument';
 import { positionInRange } from '../utils/Utils';
 import { DbtDefinitionProvider } from './DbtDefinitionProvider';
 import { SqlDefinitionProvider } from './SqlDefinitionProvider';
+import { LspServer } from '../lsp_server/LspServer';
 
 export class DefinitionProvider {
   dbtDefinitionProvider: DbtDefinitionProvider;
@@ -15,9 +16,10 @@ export class DefinitionProvider {
   constructor(
     dbtRepository: DbtRepository,
     private jinjaParser: JinjaParser,
+    getServer: () => LspServer | undefined,
   ) {
     this.dbtDefinitionProvider = new DbtDefinitionProvider(dbtRepository);
-    this.sqlDefinitionProvider = new SqlDefinitionProvider(dbtRepository);
+    this.sqlDefinitionProvider = new SqlDefinitionProvider(dbtRepository, getServer);
   }
 
   async onDefinition(

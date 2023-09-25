@@ -6,14 +6,20 @@ import { DagNodeFetcher } from '../ModelFetcher';
 import { PositionConverter } from '../PositionConverter';
 import { AnalyzeResult } from '../ProjectAnalyzer';
 import { Location } from '../ZetaSqlAst';
-import { DbtTextDocument, QueryParseInformation } from '../document/DbtTextDocument';
+import { DbtTextDocument, QueryParseInformation, QueryParseInformationSelectColumn } from '../document/DbtTextDocument';
 import { getTableRefUniqueId } from '../utils/ManifestUtils';
-import { positionInRange, rangesOverlap } from '../utils/Utils';
+import { arraysAreEqual, getPositionByIndex, positionInRange, rangesOverlap } from '../utils/Utils';
 import { rangesEqual } from '../utils/ZetaSqlUtils';
+import { LspServer } from '../lsp_server/LspServer';
+import path = require('node:path');
 import { DbtDefinitionProvider } from './DbtDefinitionProvider';
+import { ManifestModel } from '../manifest/ManifestJson';
 
 export class SqlDefinitionProvider {
-  constructor(private dbtRepository: DbtRepository) {}
+  constructor(
+    private dbtRepository: DbtRepository,
+    private getServer: () => LspServer | undefined,
+  ) {}
 
   async provideDefinitions(
     definitionParams: DefinitionParams,
@@ -50,7 +56,13 @@ export class SqlDefinitionProvider {
                 const refId = getTableRefUniqueId(model, table.name, this.dbtRepository);
                 if (refId) {
                   const refModel = this.dbtRepository.dag.nodes.find(n => n.getValue().uniqueId === refId)?.getValue();
+
                   if (refModel) {
+                    const columnPosition = await this.getRefModelColumnPosition(refModel, column);
+                    if (columnPosition) {
+                      return [columnPosition];
+                    }
+
                     return [
                       LocationLink.create(
                         URI.file(this.dbtRepository.getNodeFullPath(refModel)).toString(),
@@ -120,6 +132,85 @@ export class SqlDefinitionProvider {
     }
 
     return undefined;
+  }
+
+  async getRefModelColumnPosition(refModel: ManifestModel, column: QueryParseInformationSelectColumn): Promise<LocationLink | null> {
+    const server = this.getServer();
+    if (!server) {
+      return null;
+    }
+
+    // Just in time read the file. Note that this is not perfectly efficient because we don't cache/store this.
+    // So every hover after this will re-parse the same code. We don't do so for two reasons:
+    // - That could cause memory leaks since the language server will think a file is "open" but it's never
+    // closed since the corresponding VSCode file isn't actually open (and won't send a close event)
+    // - If the file were to update its text contents then VSCode won't tell us. If we were to keep this file "open"
+    // then we'll keep using the old file contents even if it's been updated in the meantime.
+    //
+    // We do instead use a simple timed (to avoid memory leaks) and content-based (to ensure content changes still work) cache.
+    const uri = URI.file(path.join(this.dbtRepository.projectPath, refModel.originalFilePath)).toString();
+    let openedDocument = server.getOpenedDocumentByUri(uri);
+    const isVirtual = !openedDocument;
+    if (!openedDocument) {
+      openedDocument = await server.onDidOpenTextDocument(
+        {
+          textDocument: {
+            languageId: 'jinja-sql',
+            text: refModel.rawCode,
+            uri,
+            version: 99_999,
+          },
+        },
+        true,
+      );
+    }
+    if (!openedDocument) {
+      return null;
+    }
+
+    const compiledCode = refModel.compiledCode || this.dbtRepository.getModelCompiledCode(refModel);
+    if (!compiledCode) {
+      return null;
+    }
+
+    let refAnalyzeResult = server.modelAnalyzeResultCache.get(compiledCode);
+    if (!refAnalyzeResult) {
+      await openedDocument.createDiagnostics(compiledCode);
+      refAnalyzeResult = openedDocument.analyzeResult;
+    }
+
+    if (!refAnalyzeResult) {
+      return null;
+    }
+
+    // Re-set every time it is used so we keep the cache hot
+    server.modelAnalyzeResultCache.set(compiledCode, refAnalyzeResult);
+
+    for (const modelSelect of refAnalyzeResult.parseResult.selects) {
+      for (const sourceColumn of modelSelect.columns) {
+        if (arraysAreEqual(sourceColumn.namePath, column.namePath)) {
+          const converter = new PositionConverter(refModel.rawCode, compiledCode);
+          const compiledStart = getPositionByIndex(compiledCode, sourceColumn.parseLocationRange.start);
+          const compiledEnd = getPositionByIndex(compiledCode, sourceColumn.parseLocationRange.end);
+          const start = converter.convertPositionBackward(compiledStart);
+          const end = converter.convertPositionBackward(compiledEnd);
+          const range: Range = {
+            start,
+            end,
+          };
+
+          if (isVirtual) {
+            openedDocument.dispose();
+          }
+          return LocationLink.create(URI.file(this.dbtRepository.getNodeFullPath(refModel)).toString(), range, range, column.rawRange);
+        }
+      }
+    }
+
+    if (isVirtual) {
+      openedDocument.dispose();
+    }
+    return null;
   }
 
   static toCompiledRange(location: Location, compiledDocument: TextDocument): Range {
