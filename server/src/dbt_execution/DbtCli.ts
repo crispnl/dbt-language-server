@@ -37,9 +37,11 @@ export class DbtCli {
     stdout: string;
     stderr: string;
   }> {
-    const params = ['-f']; // Always compile full-refreshed (TODO: maybe make this an option? could be slower than without -f)
+    const params = ['-f']; // Always compile full-refreshed to avoid issues with partial incremental updates
     if (modelName) {
       params.push('-m', `+${slash(modelName)}`);
+    } else {
+      params.push('--exclude', 'resource_type:test'); // We ignore tests altogether
     }
     const log = (data: string): void => console.log(data);
 

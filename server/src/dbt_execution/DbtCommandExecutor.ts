@@ -20,7 +20,7 @@ export class DbtCommandExecutor {
     stderr: string;
   }> {
     return DbtCommandExecutor.PROCESS_EXECUTOR.execProcess(
-      `${this.python} ${this.scriptPath} ${macroCompilerPort} ${profilesDir} compile ${params.join(' ')}`,
+      `${this.python} ${this.scriptPath} ${macroCompilerPort} ${profilesDir} --cache-selected-only compile ${params.join(' ')}`,
       onStderrData,
       undefined,
       envVars,
