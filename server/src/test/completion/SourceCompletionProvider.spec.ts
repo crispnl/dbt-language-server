@@ -60,7 +60,7 @@ describe('SourceCompletionProvider', () => {
         schema: '',
       },
     ];
-    dbtRepository.updateDbtNodes([], sources, new Dag([]));
+    dbtRepository.updateDbtNodes([], sources, [], new Dag([]));
 
     sourceCompletionProvider = new SourceCompletionProvider(dbtRepository);
   });

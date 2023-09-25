@@ -24,6 +24,7 @@ export class DbtCli {
     private notificationSender: NotificationSender,
     private macroCompilationServer: MacroCompilationServer,
     private dbtCommandExecutor: DbtCommandExecutor,
+    private dbtCompileEnvVars?: Record<string, string>,
   ) {
     this.dbtReady = false;
     this.onDbtReadyEmitter = new Emitter<void>();
@@ -45,7 +46,7 @@ export class DbtCli {
     if (!this.macroCompilationServer.port) {
       throw new Error('Incorrect state: macroCompilationServer port is required');
     }
-    return this.dbtCommandExecutor.compile(this.macroCompilationServer.port, this.featureFinder.profilesYmlDir, log, params);
+    return this.dbtCommandExecutor.compile(this.macroCompilationServer.port, this.featureFinder.profilesYmlDir, log, params, this.dbtCompileEnvVars);
   }
 
   async prepare(dbtProfileType?: string): Promise<void> {

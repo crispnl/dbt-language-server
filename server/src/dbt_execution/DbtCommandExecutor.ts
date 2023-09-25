@@ -14,6 +14,7 @@ export class DbtCommandExecutor {
     profilesDir: string,
     onStderrData: (data: string) => void,
     params: string[],
+    envVars?: Record<string, string>,
   ): PromiseWithChild<{
     stdout: string;
     stderr: string;
@@ -21,6 +22,8 @@ export class DbtCommandExecutor {
     return DbtCommandExecutor.PROCESS_EXECUTOR.execProcess(
       `${this.python} ${this.scriptPath} ${macroCompilerPort} ${profilesDir} compile ${params.join(' ')}`,
       onStderrData,
+      undefined,
+      envVars,
     );
   }
 

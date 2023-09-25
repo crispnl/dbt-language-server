@@ -7,7 +7,7 @@ export class ProcessExecutor {
     command: string,
     onStdoutData?: (data: string) => void,
     onStderrData?: (data: string) => void,
-    envVars?: NodeJS.ProcessEnv,
+    envVars?: Record<string, string>,
   ): PromiseWithChild<{
     stdout: string;
     stderr: string;

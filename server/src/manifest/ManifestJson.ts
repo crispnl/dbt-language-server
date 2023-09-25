@@ -33,8 +33,16 @@ export interface ManifestSource extends ManifestNode {
   columns: string[];
 }
 
+export interface ManifestSeed extends ManifestNode {
+  database: string;
+  schema: string;
+  sourceName: string;
+  columns: string[];
+}
+
 export interface ManifestJson {
   macros: ManifestMacro[];
   sources: ManifestSource[];
+  seeds: ManifestSeed[];
   dag: Dag;
 }

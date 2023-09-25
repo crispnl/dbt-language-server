@@ -60,6 +60,18 @@
           ],
           "default": "off",
           "description": "Traces the communication between VS Code and the language server."
+        },
+        "WizardForDbtCore(TM).dbtCompileEnvVars": {
+          "type": "object",
+          "items": {
+            "type": "object",
+            "title": "Environment variables",
+            "additionalProperties": {
+              "type": "string"
+            }
+        },
+          "description": "Additional environment variables to include in dbt compile runs.",
+          "scope": "resource"
         }
       }
     },

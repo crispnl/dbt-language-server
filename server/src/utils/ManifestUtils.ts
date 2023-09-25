@@ -1,5 +1,6 @@
 import { DbtRepository } from '../DbtRepository';
 import { ManifestModel } from '../manifest/ManifestJson';
+import { ManifestParser } from '../manifest/ManifestParser';
 
 export function getTableRefUniqueId(
   model: ManifestModel | undefined,
@@ -15,7 +16,8 @@ export function getTableRefUniqueId(
 
   if (refFullName) {
     const joinedName = refFullName.join('.');
-    return model.dependsOn.nodes.find(n => n.endsWith(`.${joinedName}`));
+    // We treat seeds as sources; so exclude them from search results
+    return model.dependsOn.nodes.find(n => !n.startsWith(ManifestParser.RESOURCE_TYPE_SEED) && n.endsWith(`.${joinedName}`));
   }
 
   return undefined;

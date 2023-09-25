@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { DagGenerator } from '../dag/DagGenerator';
-import { ManifestJson, ManifestMacro, ManifestModel, ManifestSource } from './ManifestJson';
+import { ManifestJson, ManifestMacro, ManifestModel, ManifestSeed, ManifestSource } from './ManifestJson';
 
 interface RawNode {
   resource_type: string;
@@ -41,6 +41,7 @@ interface RawManifest {
 export class ManifestParser {
   static readonly MANIFEST_FILE_NAME = 'manifest.json';
   static readonly RESOURCE_TYPE_MODEL = 'model';
+  static readonly RESOURCE_TYPE_SEED = 'seed';
   static readonly RESOURCE_TYPE_MACRO = 'macro';
   static readonly RESOURCE_TYPE_SOURCE = 'source';
   static readonly PROJECT_PATH = './';
@@ -54,18 +55,19 @@ export class ManifestParser {
     const content = readFileSync(manifestPath, 'utf8');
     const manifest = JSON.parse(content) as RawManifest;
 
-    const { nodes, macros, sources } = manifest;
-
-    const models = this.parseModelDefinitions(nodes);
     const generatedAt = new Date(manifest.metadata.generated_at);
     if (this.lastGeneratedAt && generatedAt <= this.lastGeneratedAt) {
       return undefined;
     }
     this.lastGeneratedAt = generatedAt;
 
+    const { nodes, macros, sources } = manifest;
+    const models = this.parseModelDefinitions(nodes);
+
     return {
       macros: this.parseMacroDefinitions(macros),
       sources: this.parseSourceDefinitions(sources),
+      seeds: this.parseSeedDefinitions(nodes),
       dag: ManifestParser.DAG_GENERATOR.generateDbtGraph(models),
     };
   }
@@ -118,6 +120,24 @@ export class ManifestParser {
     if (rawNodes) {
       return Object.values(rawNodes)
         .filter(n => n.resource_type === ManifestParser.RESOURCE_TYPE_SOURCE)
+        .map<ManifestSource>(n => ({
+          uniqueId: n.unique_id,
+          originalFilePath: n.original_file_path,
+          name: n.name,
+          packageName: n.package_name,
+          sourceName: n.source_name,
+          columns: Object.values(n.columns).map(c => c.name),
+          database: n.database,
+          schema: n.schema,
+        }));
+    }
+    return [];
+  }
+
+  private parseSeedDefinitions(rawNodes: RawNode[] | undefined): ManifestSeed[] {
+    if (rawNodes) {
+      return Object.values(rawNodes)
+        .filter(n => n.resource_type === ManifestParser.RESOURCE_TYPE_SEED)
         .map<ManifestSource>(n => ({
           uniqueId: n.unique_id,
           originalFilePath: n.original_file_path,

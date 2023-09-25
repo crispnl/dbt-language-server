@@ -28,7 +28,7 @@ describe('ModelCompletionProvider', () => {
       createModel('installed_package_model_1_id', 'models/installed_package_model_1.sql', 'installed_package_model_1', INSTALLED_PACKAGE),
       createModel('installed_package_model_2_id', 'models/installed_package_model_2.sql', 'installed_package_model_2', INSTALLED_PACKAGE),
     ];
-    dbtRepository.updateDbtNodes([], [], new Dag(models.map(m => new DagNode(m))));
+    dbtRepository.updateDbtNodes([], [], [], new Dag(models.map(m => new DagNode(m))));
 
     modelCompletionProvider = new ModelCompletionProvider(dbtRepository);
   });

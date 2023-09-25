@@ -16,6 +16,7 @@ export interface CustomInitParams {
   enableSnowflakeSyntaxCheck: boolean;
   disableLogger?: boolean;
   profilesDir?: string;
+  dbtCompileEnvVars?: Record<string, string>;
 }
 
 export type RefReplacement = { from: string; to: string };

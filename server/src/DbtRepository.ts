@@ -2,7 +2,7 @@ import { deferred } from 'dbt-language-server-common';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Dag } from './dag/Dag';
-import { ManifestMacro, ManifestModel, ManifestNode, ManifestSource } from './manifest/ManifestJson';
+import { ManifestMacro, ManifestModel, ManifestNode, ManifestSeed, ManifestSource } from './manifest/ManifestJson';
 
 export class DbtRepository {
   static readonly DBT_PROJECT_FILE_NAME = 'dbt_project.yml';
@@ -36,6 +36,7 @@ export class DbtRepository {
 
   macros: ManifestMacro[] = [];
   sources: ManifestSource[] = [];
+  seeds: ManifestSeed[] = [];
   dag: Dag = new Dag([]);
 
   packageToModels = new Map<string, Set<ManifestModel>>();
@@ -60,9 +61,10 @@ export class DbtRepository {
     return this.manifestParsedDeferred.promise;
   }
 
-  updateDbtNodes(macros: ManifestMacro[], sources: ManifestSource[], dag: Dag): void {
+  updateDbtNodes(macros: ManifestMacro[], sources: ManifestSource[], seeds: ManifestSeed[], dag: Dag): void {
     this.macros = macros;
     this.sources = sources;
+    this.seeds = seeds;
     this.dag = dag;
 
     this.groupManifestNodes();

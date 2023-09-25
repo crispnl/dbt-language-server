@@ -88,6 +88,30 @@ export class ProjectAnalyzer {
       });
   }
 
+  async analyzeSeeds(signal: AbortSignal): Promise<void> {
+    const settledResult = await Promise.allSettled(
+      this.dbtRepository.seeds.map(async s => {
+        const tableDefinition = this.createTableDefinitionForSource(s);
+        // TODO: Probably need to implement abort here too
+        return this.tableFetcher.fetchTable(tableDefinition).then(ts => {
+          if (ts) {
+            tableDefinition.columns = ts.columns;
+            tableDefinition.timePartitioning = ts.timePartitioning;
+            tableDefinition.external = ts.external;
+          }
+          return tableDefinition;
+        });
+      }),
+    );
+    settledResult
+      .filter((v): v is PromiseFulfilledResult<TableDefinition> => v.status === 'fulfilled')
+      .forEach(v => {
+        if (v.value.schemaIsFilled() && !signal.aborted) {
+          this.zetaSqlWrapper.registerTable(v.value);
+        }
+      });
+  }
+
   dispose(): void {
     this.zetaSqlWrapper.terminateServer();
   }
