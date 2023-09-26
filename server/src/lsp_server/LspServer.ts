@@ -181,7 +181,11 @@ export class LspServer extends LspServerBase<FeatureFinder> {
       if (!textDocument) {
         return null;
       }
-      await textDocument.modelCompiler.compile(textDocument.getModelPathOrFullyQualifiedName(), textDocument.modelIsNotBlank());
+      const result = await textDocument.modelCompiler.startNewJob(textDocument.getModelPathOrFullyQualifiedName(), textDocument.modelIsNotBlank());
+      if (!result || !result.isOk()) {
+        // Compilation failed
+        return null;
+      }
       return textDocument.compiledDocument.getText();
     });
     this.connection.onRequest('WizardForDbtCore(TM)/getPackageVersions', (dbtPackage: string) =>
@@ -348,6 +352,7 @@ export class LspServer extends LspServerBase<FeatureFinder> {
 
   async onDidOpenTextDocument(params: DidOpenTextDocumentParams): Promise<void> {
     const { uri } = params.textDocument;
+    console.log(params);
     let document = this.getOpenedDocumentByUri(uri);
 
     if (!document) {
@@ -357,7 +362,6 @@ export class LspServer extends LspServerBase<FeatureFinder> {
         return;
       }
 
-      // TODO:(sander) should also open the initial TextDocument (that is already open on open)
       document = new DbtTextDocument(
         params.textDocument,
         dbtDocumentKind,

@@ -96,7 +96,7 @@ export abstract class DryRun implements Command {
       {
         location: ProgressLocation.Notification,
       },
-      async progress => {
+      async (progress, token) => {
         let totalProgress = 0;
         const report = (message: string, newTotalProgress: number): void => {
           progress.report({
@@ -114,6 +114,10 @@ export abstract class DryRun implements Command {
             message: 'Failed: unable to get compiled SQL for file',
           });
           await wait(5000);
+          return;
+        }
+
+        if (token.isCancellationRequested) {
           return;
         }
 
