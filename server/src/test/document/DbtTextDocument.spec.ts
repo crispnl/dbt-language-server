@@ -66,7 +66,7 @@ describe('DbtTextDocument', () => {
       new DiagnosticGenerator(dbtRepository),
       new SignatureHelpProvider(),
       new HoverProvider(),
-      new DefinitionProvider(dbtRepository, instance(mockJinjaParser)),
+      new DefinitionProvider(dbtRepository, instance(mockJinjaParser), () => undefined),
       instance(mockProjectChangeListener),
     );
   });

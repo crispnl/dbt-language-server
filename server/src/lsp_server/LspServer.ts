@@ -64,6 +64,7 @@ import { ProjectChangeListener } from '../ProjectChangeListener';
 import { SignatureHelpProvider } from '../SignatureHelpProvider';
 import { DbtProjectStatusSender } from '../status_bar/DbtProjectStatusSender';
 import { LspServerBase } from './LspServerBase';
+import { AnalyzeResult } from '../ProjectAnalyzer';
 
 export class LspServer extends LspServerBase<FeatureFinder> {
   sqlToRefCommandName = randomUUID();
@@ -71,6 +72,7 @@ export class LspServer extends LspServerBase<FeatureFinder> {
   hasConfigurationCapability = false;
   hasDidChangeWatchedFilesCapability = false;
   initStart = performance.now();
+  modelAnalyzeResultCache = new TimedModelAnalyzeResultCache();
 
   constructor(
     connection: _Connection,
@@ -338,7 +340,7 @@ export class LspServer extends LspServerBase<FeatureFinder> {
     await document?.didSaveTextDocument();
   }
 
-  async onDidOpenTextDocument(params: DidOpenTextDocumentParams): Promise<void> {
+  async onDidOpenTextDocument(params: DidOpenTextDocumentParams, isVirtual: boolean = false): Promise<DbtTextDocument | undefined> {
     const { uri } = params.textDocument;
     let document = this.getOpenedDocumentByUri(uri);
 
@@ -365,10 +367,16 @@ export class LspServer extends LspServerBase<FeatureFinder> {
         this.definitionProvider,
         this.projectChangeListener,
       );
-      this.openedDocumentsLowerCase.set(uri.toLowerCase(), document);
+      if (!isVirtual) {
+        this.openedDocumentsLowerCase.set(uri.toLowerCase(), document);
+      }
 
       await document.didOpenTextDocument();
+      // eslint-disable-next-line consistent-return
+      return document;
     }
+    // eslint-disable-next-line consistent-return
+    return document;
   }
 
   onDidChangeTextDocument(params: DidChangeTextDocumentParams): void {
@@ -466,6 +474,46 @@ export class LspServer extends LspServerBase<FeatureFinder> {
   dispose(): void {
     console.log('Dispose start...');
     this.destinationContext.dispose();
+    this.modelAnalyzeResultCache[Symbol.dispose]();
     console.log('Dispose end.');
+  }
+}
+
+class TimedModelAnalyzeResultCache implements Disposable {
+  private timer: NodeJS.Timeout;
+  private cache: Map<
+    string,
+    {
+      result: AnalyzeResult;
+      expiresAt: number;
+    }
+  > = new Map();
+
+  constructor() {
+    this.timer = setInterval(this.removeExpired.bind(this), 60 * 1000);
+  }
+
+  private removeExpired(): void {
+    const now = Date.now();
+    for (const [key, { expiresAt }] of this.cache.entries()) {
+      if (expiresAt < now) {
+        this.cache.delete(key);
+      }
+    }
+  }
+
+  get(text: string): AnalyzeResult | undefined {
+    return this.cache.get(text)?.result;
+  }
+
+  set(text: string, result: AnalyzeResult): void {
+    this.cache.set(text, {
+      result,
+      expiresAt: Date.now() + 1000 * 60 * 15,
+    });
+  }
+
+  [Symbol.dispose](): void {
+    clearInterval(this.timer);
   }
 }
