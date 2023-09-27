@@ -45,6 +45,7 @@ export interface QueryParseInformationSelectColumn {
   namePath: string[];
   rawRange: Range;
   compiledRange: Range;
+  alias?: string;
 }
 
 export interface QueryParseInformation {
