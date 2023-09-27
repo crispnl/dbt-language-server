@@ -1,3 +1,4 @@
+import { RefReplacement } from 'dbt-language-server-common';
 import {
   CompletionItem,
   CompletionParams,
@@ -39,7 +40,6 @@ import { DefinitionProvider } from '../definition/DefinitionProvider';
 import { getLineByPosition, getSignatureInfo } from '../utils/TextUtils';
 import { areRangesEqual, debounce, getIdentifierRangeAtPosition, getModelPathOrFullyQualifiedName } from '../utils/Utils';
 import { DbtDocumentKind } from './DbtDocumentKind';
-import { RefReplacement } from 'dbt-language-server-common';
 
 export interface QueryParseInformationSelectColumn {
   namePath: string[];
@@ -362,6 +362,7 @@ export class DbtTextDocument {
               namePath: c.namePath,
               compiledRange: Range.create(compiledStart, compiledEnd),
               rawRange: Range.create(start, end),
+              alias: c.alias,
             };
           }),
           tableAliases: s.tableAliases,
