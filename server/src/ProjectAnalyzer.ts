@@ -27,7 +27,7 @@ export class ProjectAnalyzer {
   constructor(
     public dbtRepository: DbtRepository,
     private destinationClient: DbtDestinationClient,
-    private zetaSqlWrapper: ZetaSqlWrapper,
+    public zetaSqlWrapper: ZetaSqlWrapper,
     private zetaSqlApi: ZetaSqlApi,
   ) {
     this.tableFetcher = this.createTableFetcher();
@@ -177,6 +177,7 @@ export class ProjectAnalyzer {
         parseResult: {
           functions: [],
           selects: [],
+          definitions: [],
         },
       };
     }
@@ -259,6 +260,7 @@ export class ProjectAnalyzer {
       parseResult: {
         functions: [],
         selects: [],
+        definitions: [],
       },
     };
   }

@@ -34,8 +34,8 @@ export abstract class ZetaSqlWrapper {
 
   constructor(
     private destinationClient: DbtDestinationClient,
-    private zetaSqlApi: ZetaSqlApi,
-    private zetaSqlParser: ZetaSqlParser,
+    public zetaSqlApi: ZetaSqlApi,
+    public zetaSqlParser: ZetaSqlParser,
     private sqlHeaderAnalyzer: SqlHeaderAnalyzer,
   ) {
     this.catalog = ZetaSqlWrapper.getDefaultCatalog();
