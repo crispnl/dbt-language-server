@@ -6,21 +6,22 @@ from dbt.contracts.connection import AdapterRequiredConfig
 from dbt.adapters.base import Column as BaseColumn
 from dbt.adapters.base.relation import BaseRelation
 import json
+import os
 
-# Expected arguments for this script: 
+# Expected arguments for this script:
 # ['--version'] to get version
 # ['3000', '/home/user/.dbt', 'compile', '-m', 'path/to/model.sql'] to compile model
 # ['3000', '/home/user/.dbt', 'compile'] to compile all models
 # ['3000', '/home/user/.dbt', 'deps'] to install dependencies
 
 dbt1_5 = True
-try: 
+try:
     from dbt.cli.main import dbtRunner
 except:
     dbt1_5 = False
 
 def dbt_command(cli_args) -> None:
-    if dbt1_5: 
+    if dbt1_5:
         dbt_runner = dbtRunner()
         result = dbt_runner.invoke(cli_args)
         sys.exit(0 if result.success else 1)

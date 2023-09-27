@@ -77,6 +77,7 @@ export abstract class DbtWizardLanguageClient implements Disposable {
       enableSnowflakeSyntaxCheck: configuration.get<boolean>('enableSnowflakeSyntaxCheck', true),
       lspMode: this.getLspMode(),
       profilesDir: configuration.get<string | undefined>('profilesDir', undefined),
+      dbtCompileEnvVars: configuration.get<Record<string, string> | undefined>('dbtCompileEnvVars', undefined),
     };
 
     this.client.clientOptions.initializationOptions = customInitParams;

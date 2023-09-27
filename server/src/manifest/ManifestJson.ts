@@ -27,6 +27,15 @@ export interface ManifestModel extends ManifestNode {
 export type ManifestMacro = ManifestNode;
 
 export interface ManifestSource extends ManifestNode {
+  database: string;
+  schema: string;
+  sourceName: string;
+  columns: string[];
+}
+
+export interface ManifestSeed extends ManifestNode {
+  database: string;
+  schema: string;
   sourceName: string;
   columns: string[];
 }
@@ -34,5 +43,6 @@ export interface ManifestSource extends ManifestNode {
 export interface ManifestJson {
   macros: ManifestMacro[];
   sources: ManifestSource[];
+  seeds: ManifestSeed[];
   dag: Dag;
 }

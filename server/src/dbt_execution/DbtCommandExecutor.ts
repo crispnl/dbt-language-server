@@ -14,13 +14,16 @@ export class DbtCommandExecutor {
     profilesDir: string,
     onStderrData: (data: string) => void,
     params: string[],
+    envVars?: Record<string, string>,
   ): PromiseWithChild<{
     stdout: string;
     stderr: string;
   }> {
     return DbtCommandExecutor.PROCESS_EXECUTOR.execProcess(
-      `${this.python} ${this.scriptPath} ${macroCompilerPort} ${profilesDir} compile ${params.join(' ')}`,
+      `${this.python} ${this.scriptPath} ${macroCompilerPort} ${profilesDir} --cache-selected-only compile ${params.join(' ')}`,
       onStderrData,
+      undefined,
+      envVars,
     );
   }
 

@@ -41,7 +41,7 @@ describe('MacroCompletionProvider', () => {
         packageName: INSTALLED_PACKAGE,
       },
     ];
-    dbtRepository.updateDbtNodes(macros, [], new Dag([]));
+    dbtRepository.updateDbtNodes(macros, [], [], new Dag([]));
 
     macroCompletionProvider = new MacroCompletionProvider(dbtRepository);
   });

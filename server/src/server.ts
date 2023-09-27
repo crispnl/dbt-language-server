@@ -47,6 +47,7 @@ const customInitParamsSchema = z.object({
   enableSnowflakeSyntaxCheck: z.boolean(),
   disableLogger: z.optional(z.boolean()),
   profilesDir: z.optional(z.string()),
+  dbtCompileEnvVars: z.optional(z.record(z.string())),
 });
 
 connection.onInitialize((params: InitializeParams): InitializeResult<unknown> | ResponseError<InitializeError> => {
@@ -92,7 +93,15 @@ function createLspServerForProject(
   const statusSender = new DbtProjectStatusSender(notificationSender, dbtRepository, featureFinder, fileChangeListener, dbtProject.findProfileName());
   const destinationContext = new DestinationContext(customInitParams.enableSnowflakeSyntaxCheck);
   const macroCompilationServer = new MacroCompilationServer(destinationContext, dbtRepository);
-  const dbt = new DbtCli(featureFinder, connection, modelProgressReporter, notificationSender, macroCompilationServer, dbtCommandExecutor);
+  const dbt = new DbtCli(
+    featureFinder,
+    connection,
+    modelProgressReporter,
+    notificationSender,
+    macroCompilationServer,
+    dbtCommandExecutor,
+    customInitParams.dbtCompileEnvVars,
+  );
   const dbtDocumentKindResolver = new DbtDocumentKindResolver(dbtRepository);
   const diagnosticGenerator = new DiagnosticGenerator(dbtRepository);
   const jinjaParser = new JinjaParser();

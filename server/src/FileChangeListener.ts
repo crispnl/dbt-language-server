@@ -80,12 +80,12 @@ export class FileChangeListener {
     try {
       const parseResult = this.manifestParser.parse(this.dbtProject.findTargetPath());
       if (parseResult) {
-        const { macros, sources, dag } = parseResult;
-        this.dbtRepository.updateDbtNodes(macros, sources, dag);
-        console.log('manifest.json was parsed. Models, macros, sources were updated');
+        const { macros, sources, seeds, dag } = parseResult;
+        this.dbtRepository.updateDbtNodes(macros, sources, seeds, dag);
+        console.log('manifest.json was parsed. Models, seeds, macros, sources were updated');
       }
-    } catch {
-      console.log(`Failed to read ${ManifestParser.MANIFEST_FILE_NAME}`);
+    } catch (e) {
+      console.log(`Failed to read ${ManifestParser.MANIFEST_FILE_NAME}`, e);
     }
   }
 }

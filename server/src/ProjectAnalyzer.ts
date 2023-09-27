@@ -3,13 +3,13 @@ import { err, Result } from 'neverthrow';
 import { DagNode } from './dag/DagNode';
 import { DbtDestinationClient } from './DbtDestinationClient';
 import { DbtRepository } from './DbtRepository';
-import { ManifestModel } from './manifest/ManifestJson';
+import { ManifestModel, ManifestSource } from './manifest/ManifestJson';
 import { TableDefinition } from './TableDefinition';
 import { TableFetcher } from './TableFetcher';
 import { getTableRefUniqueId } from './utils/ManifestUtils';
+import { ZetaSqlApi } from './ZetaSqlApi';
 import { ParseResult } from './ZetaSqlParser';
 import { KnownColumn, ZetaSqlWrapper } from './ZetaSqlWrapper';
-import { ZetaSqlApi } from './ZetaSqlApi';
 
 export type ModelsAnalyzeResult = {
   modelUniqueId: string;
@@ -62,6 +62,54 @@ export class ProjectAnalyzer {
 
   async analyzeSql(sql: string, signal: AbortSignal): Promise<AnalyzeResult> {
     return this.analyzeModelCached(undefined, sql, new Map(), signal);
+  }
+
+  async analyzeSources(signal: AbortSignal): Promise<void> {
+    const settledResult = await Promise.allSettled(
+      this.dbtRepository.sources.map(async s => {
+        const tableDefinition = this.createTableDefinitionForSource(s);
+        // TODO: Probably need to implement abort here too
+        return this.tableFetcher.fetchTable(tableDefinition).then(ts => {
+          if (ts) {
+            tableDefinition.columns = ts.columns;
+            tableDefinition.timePartitioning = ts.timePartitioning;
+            tableDefinition.external = ts.external;
+          }
+          return tableDefinition;
+        });
+      }),
+    );
+    settledResult
+      .filter((v): v is PromiseFulfilledResult<TableDefinition> => v.status === 'fulfilled')
+      .forEach(v => {
+        if (v.value.schemaIsFilled() && !signal.aborted) {
+          this.zetaSqlWrapper.registerTable(v.value);
+        }
+      });
+  }
+
+  async analyzeSeeds(signal: AbortSignal): Promise<void> {
+    const settledResult = await Promise.allSettled(
+      this.dbtRepository.seeds.map(async s => {
+        const tableDefinition = this.createTableDefinitionForSource(s);
+        // TODO: Probably need to implement abort here too
+        return this.tableFetcher.fetchTable(tableDefinition).then(ts => {
+          if (ts) {
+            tableDefinition.columns = ts.columns;
+            tableDefinition.timePartitioning = ts.timePartitioning;
+            tableDefinition.external = ts.external;
+          }
+          return tableDefinition;
+        });
+      }),
+    );
+    settledResult
+      .filter((v): v is PromiseFulfilledResult<TableDefinition> => v.status === 'fulfilled')
+      .forEach(v => {
+        if (v.value.schemaIsFilled() && !signal.aborted) {
+          this.zetaSqlWrapper.registerTable(v.value);
+        }
+      });
   }
 
   dispose(): void {
@@ -138,13 +186,16 @@ export class ProjectAnalyzer {
       await this.analyzeAllEphemeralModels(model, visitedModels, signal);
     }
 
+    const sources: TableDefinition[] = [];
+
     for (const table of tables) {
       if (signal.aborted) {
         return this.abortedResult();
       }
       if (!this.zetaSqlWrapper.isTableRegistered(table)) {
-        const refId = getTableRefUniqueId(model, table.getTableName(), this.dbtRepository);
+        const refId = getTableRefUniqueId(model, table.getTableName(), this.dbtRepository, table.getDataSetName());
         if (refId) {
+          // TODO: Fix finding seeds
           const refModel = this.dbtRepository.dag.nodes.find(n => n.getValue().uniqueId === refId)?.getValue();
           if (refModel) {
             await this.analyzeModelCached(refModel, undefined, visitedModels, signal);
@@ -152,24 +203,23 @@ export class ProjectAnalyzer {
             console.log("Can't find ref model by id");
           }
         } else {
-          // We are dealing with a source here, probably
+          // We are dealing with a source here, probably.  Read definition remotely.
+          sources.push(table);
         }
       }
     }
 
     const settledResult = await Promise.allSettled(
-      tables
-        .filter(t => !this.zetaSqlWrapper.isTableRegistered(t))
-        .map(t =>
-          this.tableFetcher.fetchTable(t).then(ts => {
-            if (ts) {
-              t.columns = ts.columns;
-              t.timePartitioning = ts.timePartitioning;
-              t.external = ts.external;
-            }
-            return t;
-          }),
-        ),
+      sources.map(t =>
+        this.tableFetcher.fetchTable(t).then(ts => {
+          if (ts) {
+            t.columns = ts.columns;
+            t.timePartitioning = ts.timePartitioning;
+            t.external = ts.external;
+          }
+          return t;
+        }),
+      ),
     );
     settledResult
       .filter((v): v is PromiseFulfilledResult<TableDefinition> => v.status === 'fulfilled')
@@ -192,6 +242,9 @@ export class ProjectAnalyzer {
       const table = this.createTableDefinition(model);
       this.fillTableWithAnalyzeResponse(table, ast.value);
       this.zetaSqlWrapper.registerTable(table);
+    } else {
+      // TODO: Send error to VSC and highlight error line
+      console.log(ast, model);
     }
 
     return {
@@ -212,6 +265,10 @@ export class ProjectAnalyzer {
 
   private createTableDefinition(model: ManifestModel): TableDefinition {
     return this.zetaSqlWrapper.createTableDefinition([model.database, model.schema, model.alias ?? model.name]);
+  }
+
+  private createTableDefinitionForSource(model: ManifestSource): TableDefinition {
+    return this.zetaSqlWrapper.createTableDefinition([model.database, model.schema, model.name]);
   }
 
   private fillTableWithAnalyzeResponse(table: TableDefinition, analyzeOutput: AnalyzeResponse__Output): void {
