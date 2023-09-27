@@ -69,7 +69,7 @@
             "additionalProperties": {
               "type": "string"
             }
-        },
+          },
           "description": "Additional environment variables to include in dbt compile runs.",
           "scope": "resource"
         }

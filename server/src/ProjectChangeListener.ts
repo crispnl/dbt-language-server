@@ -59,11 +59,8 @@ export class ProjectChangeListener {
 
     // While dbt compiles, we pull remote schemas from all our sources, so we can speed up analysis and
     // provide hints on currently unreferenced sources.
-    const analyzeSourcesTask = this.analyzeSources();
-    const analyzeSeedsTask = this.analyzeSeeds();
-    const compileResult = await this.dbtCli.compileProject(this.dbtRepository);
-    await analyzeSourcesTask;
-    await analyzeSeedsTask;
+    const [compileResult] = await Promise.all([this.dbtCli.compileProject(this.dbtRepository), this.analyzeSources(), this.analyzeSeeds()]);
+
     if (compileResult.isOk()) {
       this.updateManifest();
       try {
