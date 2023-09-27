@@ -1,4 +1,6 @@
 import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as yaml from 'yaml';
 import { commands, ExtensionContext, languages, TextDocument, TextEditor, Uri, ViewColumn, window, workspace, WorkspaceFolder } from 'vscode';
 import { ActiveTextEditorHandler } from './ActiveTextEditorHandler';
 import { CommandManager } from './commands/CommandManager';
@@ -22,11 +24,38 @@ import { AnalyzeEntireProject } from './commands/AnalyzeEntireProject';
 import { CreateDbtProject } from './commands/CreateDbtProject/CreateDbtProject';
 import { UseConfigForRefsPreview } from './commands/UseConfigForRefsPreview';
 import { NotUseConfigForRefsPreview } from './commands/NotUseConfigForRefsPreview';
+import { DryRunDev } from './commands/DryRun/DryRunDev';
+import { DryRunStaging } from './commands/DryRun/DryRunStaging';
+import { DryRunProd } from './commands/DryRun/DryRunProd';
+import { tryReadFile } from './commands/DryRun/DryRun';
 
 export interface PackageJson {
   name: string;
   version: string;
   aiKey: string;
+}
+
+export interface DBTProjectConfiguration {
+  dbt_crisp_dwh?: {
+    target: string;
+    outputs: {
+      dev?: ProjectTarget;
+      staging?: ProjectTarget;
+      prod?: ProjectTarget;
+    };
+  };
+}
+
+interface ProjectTarget {
+  type: 'bigquery';
+  method: string;
+  project: string;
+  dataset: string;
+  threads: number;
+  timeout_seconds: number;
+  location: string;
+  priority: string;
+  retries: number;
 }
 
 export class ExtensionClient {
@@ -77,17 +106,29 @@ export class ExtensionClient {
     );
     this.registerSqlPreviewContentProvider(this.context);
 
-    this.registerCommands();
+    const dbtProjectContents = tryReadFile(path.join(os.homedir(), '.dbt', 'profiles.yml'));
+    let dbtProjectConfiguration: DBTProjectConfiguration = {};
+    if (dbtProjectContents) {
+      dbtProjectConfiguration = ((): DBTProjectConfiguration => {
+        try {
+          return yaml.parse(dbtProjectContents) as DBTProjectConfiguration;
+        } catch {
+          return dbtProjectConfiguration;
+        }
+      })();
+    }
+
+    this.registerCommands(dbtProjectConfiguration);
 
     this.parseVersion();
 
-    await this.activateDefaultProject();
+    await this.activateDefaultProject(dbtProjectConfiguration);
 
     TelemetryClient.activate(this.context, this.packageJson);
     TelemetryClient.sendEvent('activate');
   }
 
-  async activateDefaultProject(): Promise<void> {
+  async activateDefaultProject(dbtProjectConfiguration: DBTProjectConfiguration): Promise<void> {
     let currentWorkspace: WorkspaceFolder | undefined = undefined;
     if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
       currentWorkspace = workspace.workspaceFolders.find(f => f.name === workspace.name);
@@ -107,6 +148,15 @@ export class ExtensionClient {
         await commands.executeCommand('workbench.action.keepEditor');
       }
     }
+
+    await commands.executeCommand('setContext', 'WizardForDbtCore:hasProdEnvironment', Boolean(dbtProjectConfiguration.dbt_crisp_dwh?.outputs.prod));
+    await commands.executeCommand(
+      'setContext',
+      'WizardForDbtCore:hasStagingEnvironment',
+      Boolean(dbtProjectConfiguration.dbt_crisp_dwh?.outputs.staging),
+    );
+    await commands.executeCommand('setContext', 'WizardForDbtCore:hasDevEnvironment', Boolean(dbtProjectConfiguration.dbt_crisp_dwh?.outputs.dev));
+
     await this.dbtLanguageClientManager.ensureNoProjectClient();
   }
 
@@ -116,7 +166,7 @@ export class ExtensionClient {
     log(`Wizard for dbt Core (TM) version: ${this.packageJson.version}`);
   }
 
-  registerCommands(): void {
+  registerCommands(dbtProjectConfiguration: DBTProjectConfiguration): void {
     this.commandManager.register(new Compile(this.dbtLanguageClientManager));
     this.commandManager.register(new AnalyzeEntireProject(this.dbtLanguageClientManager));
     this.commandManager.register(new CreateDbtProject(this.context.globalState));
@@ -127,6 +177,9 @@ export class ExtensionClient {
     this.commandManager.register(new InstallDbtPackages(this.dbtLanguageClientManager, this.outputChannelProvider));
     this.commandManager.register(new UseConfigForRefsPreview(this.previewContentProvider));
     this.commandManager.register(new NotUseConfigForRefsPreview(this.previewContentProvider));
+    this.commandManager.register(new DryRunDev(dbtProjectConfiguration, this.dbtLanguageClientManager));
+    this.commandManager.register(new DryRunStaging(dbtProjectConfiguration, this.dbtLanguageClientManager));
+    this.commandManager.register(new DryRunProd(dbtProjectConfiguration, this.dbtLanguageClientManager));
   }
 
   registerSqlPreviewContentProvider(context: ExtensionContext): void {

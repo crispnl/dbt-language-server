@@ -80,7 +80,7 @@ export class DbtTextDocument {
     private dbtDocumentKind: DbtDocumentKind,
     private notificationSender: NotificationSender,
     private modelProgressReporter: ModelProgressReporter,
-    private modelCompiler: ModelCompiler,
+    public modelCompiler: ModelCompiler,
     private jinjaParser: JinjaParser,
     private dbtRepository: DbtRepository,
     private dbtCli: DbtCli,

@@ -4,6 +4,7 @@ import { LogLevel } from './Logger';
 import { DbtCli } from './dbt_execution/DbtCli';
 import { DbtCompileJob } from './dbt_execution/DbtCompileJob';
 import { wait } from './utils/Utils';
+import { Result } from 'neverthrow';
 
 export class ModelCompiler {
   private dbtCompileJobQueue: DbtCompileJob[] = [];
@@ -40,15 +41,20 @@ export class ModelCompiler {
       const jobToStop = this.dbtCompileJobQueue.shift();
       jobToStop?.forceStop();
     }
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.startNewJob(modelPath, allowFallback);
 
     await this.pollResults();
   }
 
-  startNewJob(modelPath: string, allowFallback: boolean): void {
+  async startNewJob(modelPath: string, allowFallback: boolean): Promise<Result<undefined, string> | void> {
     const job = this.dbtCli.createCompileJob(modelPath, this.dbtRepository, allowFallback);
     this.dbtCompileJobQueue.push(job);
-    job.start().catch(e => console.log(`Failed to start job: ${e instanceof Error ? e.message : String(e)}`));
+    try {
+      return await job.start();
+    } catch (e) {
+      return console.log(`Failed to start job: ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
 
   async pollResults(): Promise<void> {

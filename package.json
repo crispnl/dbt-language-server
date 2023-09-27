@@ -83,6 +83,24 @@
         "icon": "$(book)"
       },
       {
+        "command": "WizardForDbtCore(TM).dryRunProd",
+        "title": "Dry-run (production)",
+        "category": "WizardForDbtCore(TM)",
+        "icon": "$(play)"
+      },
+      {
+        "command": "WizardForDbtCore(TM).dryRunStaging",
+        "title": "Dry-run (staging)",
+        "category": "WizardForDbtCore(TM)",
+        "icon": "$(run-above)"
+      },
+      {
+        "command": "WizardForDbtCore(TM).dryRunDev",
+        "title": "Dry-run (dev)",
+        "category": "WizardForDbtCore(TM)",
+        "icon": "$(debug-alt)"
+      },
+      {
         "command": "WizardForDbtCore(TM).notUseConfigForRefsPreview",
         "title": "✓ Use schema from config for refs",
         "category": "WizardForDbtCore(TM)"
@@ -131,6 +149,21 @@
     ],
     "menus": {
       "editor/title": [
+        {
+          "command": "WizardForDbtCore(TM).dryRunProd",
+          "group": "navigation",
+          "when": "editorLangId =~ /^sql$|^jinja-sql$|^snowflake-sql$|^sql-bigquery$/ && !editorReadonly && WizardForDbtCore:hasProdEnvironment"
+        },
+        {
+          "command": "WizardForDbtCore(TM).dryRunStaging",
+          "group": "navigation",
+          "when": "editorLangId =~ /^sql$|^jinja-sql$|^snowflake-sql$|^sql-bigquery$/ && !editorReadonly && WizardForDbtCore:hasStagingEnvironment"
+        },
+        {
+          "command": "WizardForDbtCore(TM).dryRunDev",
+          "group": "navigation",
+          "when": "editorLangId =~ /^sql$|^jinja-sql$|^snowflake-sql$|^sql-bigquery$/ && !editorReadonly && WizardForDbtCore:hasDevEnvironment"
+        },
         {
           "command": "WizardForDbtCore(TM).showQueryPreview",
           "group": "navigation",
@@ -208,6 +241,7 @@
     "prepare": "husky install"
   },
   "devDependencies": {
+    "@google-cloud/bigquery": "^7.2.0",
     "@size-limit/file": "^8.2.6",
     "@types/mocha": "^10.0.1",
     "@types/node": "^20.6.0",
@@ -234,7 +268,8 @@
     "ts-unused-exports": "^10.0.1",
     "typescript": "^5.2.2",
     "webpack": "^5.88.2",
-    "webpack-cli": "^5.1.4"
+    "webpack-cli": "^5.1.4",
+    "yaml": "^2.3.2"
   },
   "lint-staged": {
     "*.ts": [

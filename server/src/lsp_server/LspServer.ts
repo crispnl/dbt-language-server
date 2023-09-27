@@ -178,6 +178,18 @@ export class LspServer extends LspServerBase<FeatureFinder> {
     this.connection.onNotification('custom/analyzeEntireProject', () => this.onAnalyzeEntireProject());
 
     this.connection.onRequest('WizardForDbtCore(TM)/getListOfPackages', () => this.featureFinder.packageInfosPromise.get());
+    this.connection.onRequest('WizardForDbtCore(TM)/getCompiledSql', async (uri: string) => {
+      const textDocument = this.openedDocumentsLowerCase.get(uri.toLowerCase());
+      if (!textDocument) {
+        return null;
+      }
+      const result = await textDocument.modelCompiler.startNewJob(textDocument.getModelPathOrFullyQualifiedName(), textDocument.modelIsNotBlank());
+      if (!result || !result.isOk()) {
+        // Compilation failed
+        return null;
+      }
+      return textDocument.compiledDocument.getText();
+    });
     this.connection.onRequest('WizardForDbtCore(TM)/getPackageVersions', (dbtPackage: string) =>
       this.featureFinder.getDbtPackageVersions(dbtPackage),
     );
@@ -342,6 +354,7 @@ export class LspServer extends LspServerBase<FeatureFinder> {
 
   async onDidOpenTextDocument(params: DidOpenTextDocumentParams, isVirtual: boolean = false): Promise<DbtTextDocument | undefined> {
     const { uri } = params.textDocument;
+    console.log(params);
     let document = this.getOpenedDocumentByUri(uri);
 
     if (!document) {
