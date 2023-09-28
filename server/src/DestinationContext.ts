@@ -18,7 +18,7 @@ export class DestinationContext {
   private static readonly NOT_INITIALIZED_ERROR = 'projectAnalyzer is not initialized';
 
   destinationDefinition?: DestinationDefinition;
-  private projectAnalyzer?: ProjectAnalyzer;
+  public projectAnalyzer?: ProjectAnalyzer;
   private projectAnalyzeTask?: ProjectAnalyzeTask;
   private projectName?: string;
   private destination?: SupportedDestinations;
