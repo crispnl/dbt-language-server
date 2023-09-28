@@ -2,15 +2,46 @@
 
 import { AnyResolvedScanProto__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/AnyResolvedScanProto';
 import { ParseLocationRangeProto, ParseLocationRangeProto__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/ParseLocationRangeProto';
+import { ResolvedColumnRefProto__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/ResolvedColumnRefProto';
+import { ResolvedComputedColumnProto__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/ResolvedComputedColumnProto';
 import { ResolvedFunctionCallProto__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/ResolvedFunctionCallProto';
+import { ResolvedLiteralProto__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/ResolvedLiteralProto';
 import { ResolvedOutputColumnProto__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/ResolvedOutputColumnProto';
+import { ResolvedProjectScanProto__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/ResolvedProjectScanProto';
 import { ResolvedQueryStmtProto__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/ResolvedQueryStmtProto';
 import { ResolvedScanProto__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/ResolvedScanProto';
+import { ResolvedSetOperationScanProto__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/ResolvedSetOperationScanProto';
 import { ResolvedTableScanProto, ResolvedTableScanProto__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/ResolvedTableScanProto';
+import { ResolvedWithEntryProto__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/ResolvedWithEntryProto';
+import { ResolvedWithRefScanProto__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/ResolvedWithRefScanProto';
 import { ResolvedWithScanProto__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/ResolvedWithScanProto';
 import { AnalyzeResponse__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/local_service/AnalyzeResponse';
 import { extractDatasetFromFullName } from './utils/Utils';
-import { TYPE_KIND_NAMES, positionInRange, rangeContainsRange, rangesEqual } from './utils/ZetaSqlUtils';
+import { TYPE_KIND_NAMES, positionInRange, rangeContainsRange, rangesEqual, traverse } from './utils/ZetaSqlUtils';
+
+export interface SourceColumn {
+  table?: string;
+  literal?: any;
+  columnId: Long;
+  name: string;
+}
+
+interface ColumnEdge {
+  sourceColumnId: Long;
+  targetColumnId: Long;
+  edgeType: 'union' | 'function' | 'cte';
+}
+
+interface OutputColumn {
+  columnId: Long;
+  name: string;
+}
+
+export interface LineageInfo {
+  sourceColumns: SourceColumn[];
+  edges: ColumnEdge[];
+  outputColumns: OutputColumn[];
+}
 
 export class ZetaSqlAst {
   propertyNames = [
@@ -112,6 +143,164 @@ export class ZetaSqlAst {
     'withPartitionColumns',
     'withSubquery',
   ];
+
+  getLineage(ast: AnalyzeResponse__Output): LineageInfo {
+    const result: LineageInfo = {
+      sourceColumns: [],
+      edges: [],
+      outputColumns: [],
+    };
+
+    const resolvedStatementNode = ast.resolvedStatement?.resolvedQueryStmtNode;
+    if (!resolvedStatementNode) {
+      return result;
+    }
+
+    result.outputColumns = resolvedStatementNode.outputColumnList.map(c => ({
+      columnId: c.column?.columnId,
+      name: c.column?.name,
+    }));
+
+    const cteMaps: Record<string, { targetColumnId: Long }[]> = {};
+
+    const targetColumnStack: {
+      name: string;
+      columnId: Long;
+    }[] = [];
+
+    // https://github.com/google/zetasql/blob/master/docs/resolved_ast.md
+    traverse(
+      resolvedStatementNode,
+      new Map([
+        [
+          'resolvedTableScanNode',
+          {
+            actionBefore: (node: unknown): void => {
+              const typedNode = node as ResolvedTableScanProto__Output;
+
+              const newSourceColumns = typedNode.parent?.columnList.map(c => ({
+                table: typedNode.table?.fullName,
+                columnId: c.columnId,
+                name: c.name,
+              }));
+
+              if (newSourceColumns) result.sourceColumns.push(...newSourceColumns);
+            },
+          },
+        ],
+        [
+          'resolvedLiteralNode',
+          {
+            actionBefore: (node: unknown): void => {
+              const typedNode = node as ResolvedLiteralProto__Output;
+              const targetCol = targetColumnStack.at(-1);
+
+              if (targetCol) {
+                result.sourceColumns.push({
+                  columnId: targetCol.columnId,
+                  literal: typedNode.value?.value,
+                  name: targetCol.name,
+                });
+              }
+            },
+          },
+        ],
+        [
+          'resolvedComputedColumnNode',
+          {
+            actionBefore: (node: unknown): void => {
+              const typedNode = node as ResolvedComputedColumnProto__Output;
+
+              if (typedNode.column) {
+                targetColumnStack.push({
+                  columnId: typedNode.column.columnId,
+                  name: typedNode.column.name,
+                });
+              }
+            },
+            actionAfter: (): void => {
+              targetColumnStack.pop();
+            },
+          },
+        ],
+        [
+          'resolvedColumnRefNode',
+          {
+            actionBefore: (node: unknown): void => {
+              const typedNode = node as ResolvedColumnRefProto__Output;
+              const targetCol = targetColumnStack.at(-1);
+              if (typedNode.column && targetCol) {
+                result.edges.push({
+                  targetColumnId: targetCol.columnId,
+                  sourceColumnId: typedNode.column.columnId,
+                  edgeType: 'function',
+                });
+              }
+            },
+          },
+        ],
+        [
+          'resolvedWithEntryNode',
+          {
+            actionBefore: (node: unknown): void => {
+              const typedNode = node as ResolvedWithEntryProto__Output;
+
+              if (typedNode.withSubquery) {
+                const innerNodeType = typedNode.withSubquery.node;
+
+                // TODO: Could be a few other types
+                const innerNode = typedNode.withSubquery[innerNodeType] as ResolvedProjectScanProto__Output;
+
+                cteMaps[typedNode.withQueryName] = innerNode.parent?.columnList.map(c => ({ targetColumnId: c.columnId })) || [];
+              }
+            },
+          },
+        ],
+        [
+          'resolvedWithRefScanNode',
+          // "The column_list produced here will match 1:1 with the column_list produced
+          // by the referenced subquery and will given a new unique id to each column
+          // produced for this scan."
+          {
+            actionBefore: (node: unknown): void => {
+              const typedNode = node as ResolvedWithRefScanProto__Output;
+
+              const extraEdges = typedNode.parent?.columnList.map<ColumnEdge>((c, i) => ({
+                sourceColumnId: cteMaps[c.tableName][i].targetColumnId,
+                targetColumnId: c.columnId,
+                edgeType: 'cte',
+              }));
+
+              if (extraEdges) result.edges.push(...extraEdges);
+            },
+          },
+        ],
+        [
+          'resolvedSetOperationScanNode',
+          {
+            actionBefore: (node: unknown): void => {
+              const typedNode = node as ResolvedSetOperationScanProto__Output;
+
+              const outputColumns = typedNode.parent?.columnList;
+              if (!outputColumns) return;
+
+              for (const inputItem of typedNode.inputItemList) {
+                const newEdges = inputItem.outputColumnList.map<ColumnEdge>((c, i) => ({
+                  sourceColumnId: c.columnId,
+                  targetColumnId: outputColumns[i].columnId,
+                  edgeType: 'union',
+                }));
+
+                result.edges.push(...newEdges);
+              }
+            },
+          },
+        ],
+      ]),
+    );
+
+    return result;
+  }
 
   getHoverInfo(ast: AnalyzeResponse__Output, text: string): HoverInfo {
     const result: HoverInfo = {};

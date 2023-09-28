@@ -28,6 +28,7 @@ import { DryRunDev } from './commands/DryRun/DryRunDev';
 import { DryRunStaging } from './commands/DryRun/DryRunStaging';
 import { DryRunProd } from './commands/DryRun/DryRunProd';
 import { tryReadFile } from './commands/DryRun/DryRun';
+import { GenerateDocumentation } from './commands/GenerateDocumentation';
 
 export interface PackageJson {
   name: string;
@@ -180,6 +181,7 @@ export class ExtensionClient {
     this.commandManager.register(new DryRunDev(dbtProjectConfiguration, this.dbtLanguageClientManager));
     this.commandManager.register(new DryRunStaging(dbtProjectConfiguration, this.dbtLanguageClientManager));
     this.commandManager.register(new DryRunProd(dbtProjectConfiguration, this.dbtLanguageClientManager));
+    this.commandManager.register(new GenerateDocumentation(this.dbtLanguageClientManager));
   }
 
   registerSqlPreviewContentProvider(context: ExtensionContext): void {

@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as yaml from 'yaml';
 import { DbtRepository } from './DbtRepository';
-import { YamlParserUtils } from './YamlParserUtils';
+import { YamlUtils } from './YamlUtils';
 
 export class DbtProject {
   parsedProject?: Record<string, unknown>;
@@ -16,10 +16,7 @@ export class DbtProject {
 
   getProject(): Record<string, unknown> {
     if (this.isParsedProjectOutdated || !this.parsedProject) {
-      this.parsedProject = YamlParserUtils.parseYamlFile(path.resolve(this.projectPath, DbtRepository.DBT_PROJECT_FILE_NAME)) as Record<
-        string,
-        unknown
-      >;
+      this.parsedProject = YamlUtils.parseYamlFile(path.resolve(this.projectPath, DbtRepository.DBT_PROJECT_FILE_NAME)) as Record<string, unknown>;
       this.isParsedProjectOutdated = false;
     }
     return this.parsedProject;

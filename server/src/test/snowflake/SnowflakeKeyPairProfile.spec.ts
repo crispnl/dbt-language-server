@@ -1,5 +1,5 @@
 import { SnowflakeKeyPairProfile } from '../../snowflake/SnowflakeKeyPairProfile';
-import { YamlParserUtils } from '../../YamlParserUtils';
+import { YamlUtils } from '../../YamlUtils';
 import { getConfigPath, shouldPassValidProfile, shouldRequireProfileField, SNOWFLAKE_CONFIG } from '../helper';
 
 describe('SnowflakeKeyPairProfile', () => {
@@ -29,7 +29,7 @@ describe('SnowflakeKeyPairProfile', () => {
 });
 
 function shouldRequireField(field: string): void {
-  const profiles = YamlParserUtils.parseYamlFile(getConfigPath(SNOWFLAKE_CONFIG));
+  const profiles = YamlUtils.parseYamlFile(getConfigPath(SNOWFLAKE_CONFIG));
   const oauthTokenBasedProfile = new SnowflakeKeyPairProfile();
   shouldRequireProfileField(profiles, oauthTokenBasedProfile, `key_pair_missing_${field}`, field);
 }

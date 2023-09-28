@@ -56,6 +56,10 @@ export class NotificationSender {
     this.sendNotification('WizardForDbtCore(TM)/dbtDepsLog', data);
   }
 
+  sendWarning(message: string): void {
+    this.connection.window.showWarningMessage(message);
+  }
+
   private sendNotification(method: string, params?: unknown): void {
     this.connection
       .sendNotification(method, params)

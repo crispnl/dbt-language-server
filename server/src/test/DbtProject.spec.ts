@@ -1,13 +1,13 @@
 import { assertThat } from 'hamjest';
 import { spy, verify } from 'ts-mockito';
 import { DbtProject } from '../DbtProject';
-import { YamlParserUtils } from '../YamlParserUtils';
+import { YamlUtils } from '../YamlUtils';
 
 describe('DbtProject', () => {
   const PROJECT_PATH = '/Users/user_name/projects/project_name';
 
   /* eslint-disable-next-line @typescript-eslint/unbound-method */
-  const { parseYamlFile } = YamlParserUtils;
+  const { parseYamlFile } = YamlUtils;
 
   let dbtProjectInstance: DbtProject;
   let spiedDbtProject: DbtProject;
@@ -17,7 +17,7 @@ describe('DbtProject', () => {
     dbtProjectInstance = new DbtProject(PROJECT_PATH);
     spiedDbtProject = spy(dbtProjectInstance);
 
-    YamlParserUtils.parseYamlFile = (_filePath: string): { name: string } => {
+    YamlUtils.parseYamlFile = (_filePath: string): { name: string } => {
       parseYamlFileCalls++;
       return { name: 'project_name' };
     };
@@ -26,7 +26,7 @@ describe('DbtProject', () => {
   });
 
   after(() => {
-    YamlParserUtils.parseYamlFile = parseYamlFile;
+    YamlUtils.parseYamlFile = parseYamlFile;
   });
 
   it('findProjectName should call parseYamlFile once', () => {
