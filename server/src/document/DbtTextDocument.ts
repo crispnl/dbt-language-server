@@ -1,4 +1,5 @@
 import { RefReplacement } from 'dbt-language-server-common';
+import path from 'node:path';
 import {
   CompletionItem,
   CompletionParams,
@@ -32,13 +33,16 @@ import { PositionConverter } from '../PositionConverter';
 import { AnalyzeResult } from '../ProjectAnalyzer';
 import { ProjectChangeListener } from '../ProjectChangeListener';
 import { SignatureHelpProvider } from '../SignatureHelpProvider';
+import { YamlUtils } from '../YamlUtils';
 import { Location, ZetaSqlAst } from '../ZetaSqlAst';
 import { CompletionProvider } from '../completion/CompletionProvider';
 import { DbtCli } from '../dbt_execution/DbtCli';
 import { DbtCompileJob } from '../dbt_execution/DbtCompileJob';
 import { DefinitionProvider } from '../definition/DefinitionProvider';
+import { traceColumnSource } from '../utils/LineageUtils';
+import { getTableRefUniqueId } from '../utils/ManifestUtils';
 import { getLineByPosition, getSignatureInfo } from '../utils/TextUtils';
-import { areRangesEqual, debounce, getIdentifierRangeAtPosition, getModelPathOrFullyQualifiedName } from '../utils/Utils';
+import { areRangesEqual, debounce, getIdentifierRangeAtPosition, getModelPathOrFullyQualifiedName, simpleHash } from '../utils/Utils';
 import { DbtDocumentKind } from './DbtDocumentKind';
 
 export interface QueryParseInformationSelectColumn {
@@ -53,6 +57,21 @@ export interface QueryParseInformation {
     columns: QueryParseInformationSelectColumn[];
     tableAliases: Map<string, string>;
     parseLocationRange: Location;
+  }[];
+}
+
+// TODO: Find a better name and place
+interface DocumentationYaml {
+  models: {
+    name: string;
+    description?: string;
+    columns?: {
+      name: string;
+      description?: string;
+      meta?: {
+        docHash?: string;
+      };
+    }[];
   }[];
 }
 
@@ -247,6 +266,90 @@ export class DbtTextDocument {
       if (this.dbtCli.dbtReady) {
         this.debouncedCompile();
       }
+    }
+  }
+
+  generateDocumentation(): void {
+    if (this.dbtDocumentKind === DbtDocumentKind.MODEL) {
+      this.modelProgressReporter.sendStart(this.rawDocument.uri);
+      const ast = this.analyzeResult?.ast;
+
+      const model = this.dbtRepository.dag.getNodeByUri(this.getModelPathOrFullyQualifiedName())?.getValue();
+
+      if (!model) {
+        this.notificationSender.sendWarning('Make sure you run this command in an open DBT model file.');
+        return;
+      }
+
+      if (!ast) {
+        this.notificationSender.sendWarning("Model hasn't been analyzed yet.");
+        return;
+      }
+
+      if (!ast.isOk()) {
+        this.notificationSender.sendWarning('Model contains validation errors. Fix them before generating documentation.');
+        return;
+      }
+
+      const docsRelPath = model.patchPath.split('://').pop();
+      if (!docsRelPath) {
+        this.notificationSender.sendWarning("The model isn't linked to a schema YAML file.");
+        return;
+      }
+
+      const docsPath = path.join(this.dbtRepository.projectPath, docsRelPath);
+
+      const docsYaml = YamlUtils.parseYamlFile(docsPath) as DocumentationYaml;
+
+      let currentDocs = docsYaml.models.find(m => m.name === model.name);
+
+      if (!currentDocs) {
+        currentDocs = {
+          name: model.name,
+          columns: [],
+        };
+        docsYaml.models.push(currentDocs);
+      }
+
+      const lineage = DbtTextDocument.ZETA_SQL_AST.getLineage(ast.value);
+
+      for (const outputColumn of lineage.outputColumns) {
+        const sourceCol = traceColumnSource(outputColumn.columnId, lineage);
+
+        if (sourceCol?.table) {
+          // TODO: Find the schema sourceCol refers to
+          const ref = getTableRefUniqueId(model, sourceCol.table, this.dbtRepository);
+          if (ref) {
+            const sourceColumnNode = this.dbtRepository.dag.getNodeById(ref)?.getValue().columns[outputColumn.name];
+
+            if (sourceColumnNode?.description && sourceColumnNode.description !== '') {
+              const currentColDoc = currentDocs.columns?.find(c => c.name === outputColumn.name);
+              const docHash = simpleHash(sourceColumnNode.description);
+
+              if (currentColDoc && (!currentColDoc.description || simpleHash(currentColDoc.description || '') === currentColDoc.meta?.docHash)) {
+                currentColDoc.description = sourceColumnNode.description;
+
+                if (currentColDoc.meta) {
+                  currentColDoc.meta.docHash = docHash;
+                } else {
+                  currentColDoc.meta = { docHash };
+                }
+              } else {
+                currentDocs.columns?.push({
+                  name: outputColumn.name,
+                  description: sourceColumnNode.description,
+                  meta: { docHash },
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // TODO: Ideally, patch the part we've changed, instead of rewriting the entire file
+      // which may cause formatting differences. Also, if the file is open, it would be nicer
+      // to not overwrite the file, but apply the patches inside the editor
+      YamlUtils.writeYamlFile(docsYaml, docsPath);
     }
   }
 

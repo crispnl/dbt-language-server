@@ -14,6 +14,7 @@ import { arraysAreEqual, getPositionByIndex, positionInRange, rangesOverlap } fr
 import { rangesEqual } from '../utils/ZetaSqlUtils';
 import { DbtDefinitionProvider } from './DbtDefinitionProvider';
 import path = require('node:path');
+import { ParseLocationRangeProto__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/ParseLocationRangeProto';
 
 export class SqlDefinitionProvider {
   constructor(
@@ -168,49 +169,67 @@ export class SqlDefinitionProvider {
       return null;
     }
 
-    const compiledCode = refModel.compiledCode || this.dbtRepository.getModelCompiledCode(refModel);
-    if (!compiledCode) {
-      return null;
-    }
-
-    let refAnalyzeResult = server.modelAnalyzeResultCache.get(compiledCode);
-    if (!refAnalyzeResult) {
-      await openedDocument.createDiagnostics(compiledCode);
-      refAnalyzeResult = openedDocument.analyzeResult;
-    }
-
-    if (!refAnalyzeResult) {
-      return null;
-    }
-
-    // Re-set every time it is used so we keep the cache hot
-    server.modelAnalyzeResultCache.set(compiledCode, refAnalyzeResult);
-
-    for (const modelSelect of refAnalyzeResult.parseResult.selects) {
-      for (const sourceColumn of modelSelect.columns) {
-        if (arraysAreEqual(sourceColumn.namePath, column.namePath)) {
-          const converter = new PositionConverter(refModel.rawCode, compiledCode);
-          const compiledStart = getPositionByIndex(compiledCode, sourceColumn.parseLocationRange.start);
-          const compiledEnd = getPositionByIndex(compiledCode, sourceColumn.parseLocationRange.end);
-          const start = converter.convertPositionBackward(compiledStart);
-          const end = converter.convertPositionBackward(compiledEnd);
-          const range: Range = {
-            start,
-            end,
-          };
-
-          if (isVirtual) {
-            openedDocument.dispose();
-          }
-          return LocationLink.create(URI.file(this.dbtRepository.getNodeFullPath(refModel)).toString(), range, range, column.rawRange);
-        }
+    const locationLink = await (async (): Promise<LocationLink | null> => {
+      const compiledCode = refModel.compiledCode || this.dbtRepository.getModelCompiledCode(refModel);
+      if (!compiledCode || !server.destinationContext.projectAnalyzer) {
+        return null;
       }
-    }
+
+      let zetaParsedResult = server.zetaParserResultcache.get(compiledCode);
+      if (!zetaParsedResult) {
+        zetaParsedResult = await server.destinationContext.projectAnalyzer.zetaSqlWrapper.zetaSqlParser.parse(
+          compiledCode,
+          await server.destinationContext.projectAnalyzer.zetaSqlWrapper.zetaSqlApi.getLanguageOptions(),
+        );
+      }
+
+      if (!zetaParsedResult) {
+        return null;
+      }
+
+      // Re-set every time it is used so we keep the cache hot
+      server.zetaParserResultcache.set(compiledCode, zetaParsedResult);
+
+      if (!zetaParsedResult.parsedStatement?.astQueryStatementNode) {
+        return null;
+      }
+
+      const location = ((): ParseLocationRangeProto__Output | null => {
+        for (const selection of zetaParsedResult.parsedStatement.astQueryStatementNode.query?.queryExpr?.astSelectNode?.selectList?.columns ?? []) {
+          if (selection.alias?.identifier?.idString && arraysAreEqual([selection.alias.identifier.idString], column.namePath.slice(1))) {
+            return selection.parent?.parseLocationRange ?? null;
+          }
+          if (selection.expression?.astGeneralizedPathExpressionNode?.astPathExpressionNode) {
+            const namePath = selection.expression.astGeneralizedPathExpressionNode.astPathExpressionNode.names.map(name => name.idString);
+            if (arraysAreEqual(namePath.slice(1), column.namePath.slice(1))) {
+              return selection.expression.astGeneralizedPathExpressionNode.astPathExpressionNode.parent?.parent?.parent?.parseLocationRange ?? null;
+            }
+          }
+        }
+        return null;
+      })();
+
+      if (!location) {
+        return null;
+      }
+
+      const converter = new PositionConverter(refModel.rawCode, compiledCode);
+      const compiledStart = getPositionByIndex(compiledCode, location.start);
+      const compiledEnd = getPositionByIndex(compiledCode, location.end);
+      const start = converter.convertPositionBackward(compiledStart);
+      const end = converter.convertPositionBackward(compiledEnd);
+      const range: Range = {
+        start,
+        end,
+      };
+
+      return LocationLink.create(URI.file(this.dbtRepository.getNodeFullPath(refModel)).toString(), range, range, column.rawRange);
+    })();
 
     if (isVirtual) {
       openedDocument.dispose();
     }
-    return null;
+    return locationLink;
   }
 
   static toCompiledRange(location: Location, compiledDocument: TextDocument): Range {

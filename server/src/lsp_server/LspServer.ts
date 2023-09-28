@@ -60,11 +60,12 @@ import { ModelCompiler } from '../ModelCompiler';
 import { ModelProgressReporter } from '../ModelProgressReporter';
 import { NotificationSender } from '../NotificationSender';
 import { ProcessExecutor } from '../ProcessExecutor';
+import { AnalyzeResult } from '../ProjectAnalyzer';
 import { ProjectChangeListener } from '../ProjectChangeListener';
 import { SignatureHelpProvider } from '../SignatureHelpProvider';
 import { DbtProjectStatusSender } from '../status_bar/DbtProjectStatusSender';
 import { LspServerBase } from './LspServerBase';
-import { AnalyzeResult } from '../ProjectAnalyzer';
+import { ParseResponse__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/local_service/ParseResponse';
 
 export class LspServer extends LspServerBase<FeatureFinder> {
   sqlToRefCommandName = randomUUID();
@@ -72,7 +73,7 @@ export class LspServer extends LspServerBase<FeatureFinder> {
   hasConfigurationCapability = false;
   hasDidChangeWatchedFilesCapability = false;
   initStart = performance.now();
-  modelAnalyzeResultCache = new TimedModelAnalyzeResultCache();
+  zetaParserResultcache = new TimedModelAnalyzeResultCache();
 
   constructor(
     connection: _Connection,
@@ -91,7 +92,7 @@ export class LspServer extends LspServerBase<FeatureFinder> {
     private definitionProvider: DefinitionProvider,
     private signatureHelpProvider: SignatureHelpProvider,
     private hoverProvider: HoverProvider,
-    private destinationContext: DestinationContext,
+    public destinationContext: DestinationContext,
     private openedDocumentsLowerCase: Map<string, DbtTextDocument>,
     private projectChangeListener: ProjectChangeListener,
     private enableSnowflakeSyntaxCheck: boolean,
@@ -176,6 +177,7 @@ export class LspServer extends LspServerBase<FeatureFinder> {
     this.connection.onNotification('custom/dbtCompile', (uri: string) => this.onDbtCompile(uri));
     this.connection.onNotification('WizardForDbtCore(TM)/resendDiagnostics', (uri: string) => this.onResendDiagnostics(uri));
     this.connection.onNotification('custom/analyzeEntireProject', () => this.onAnalyzeEntireProject());
+    this.connection.onNotification('custom/generateDocumentation', (uri: string) => this.onGenerateDocumentation(uri));
 
     this.connection.onRequest('WizardForDbtCore(TM)/getListOfPackages', () => this.featureFinder.packageInfosPromise.get());
     this.connection.onRequest('WizardForDbtCore(TM)/getCompiledSql', async (uri: string) => {
@@ -335,6 +337,15 @@ export class LspServer extends LspServerBase<FeatureFinder> {
     this.getOpenedDocumentByUri(uri)?.forceRecompile();
   }
 
+  onGenerateDocumentation(uri: string): void {
+    const doc = this.getOpenedDocumentByUri(uri);
+    if (doc) {
+      doc.generateDocumentation();
+    } else {
+      this.notificationSender.sendWarning('Open a DBT model file first.');
+    }
+  }
+
   async onResendDiagnostics(uri: string): Promise<void> {
     await this.getOpenedDocumentByUri(uri)?.resendDiagnostics();
   }
@@ -487,7 +498,7 @@ export class LspServer extends LspServerBase<FeatureFinder> {
   dispose(): void {
     console.log('Dispose start...');
     this.destinationContext.dispose();
-    this.modelAnalyzeResultCache[Symbol.dispose]();
+    this.zetaParserResultcache[Symbol.dispose]();
     console.log('Dispose end.');
   }
 }
@@ -497,7 +508,7 @@ class TimedModelAnalyzeResultCache implements Disposable {
   private cache: Map<
     string,
     {
-      result: AnalyzeResult;
+      result: ParseResponse__Output;
       expiresAt: number;
     }
   > = new Map();
@@ -515,11 +526,11 @@ class TimedModelAnalyzeResultCache implements Disposable {
     }
   }
 
-  get(text: string): AnalyzeResult | undefined {
+  get(text: string): ParseResponse__Output | undefined {
     return this.cache.get(text)?.result;
   }
 
-  set(text: string, result: AnalyzeResult): void {
+  set(text: string, result: ParseResponse__Output): void {
     this.cache.set(text, {
       result,
       expiresAt: Date.now() + 1000 * 60 * 15,

@@ -110,5 +110,8 @@ function createModel(uniqueId: string, originalFilePath: string, name: string, p
       nodes: [],
     },
     refs: [],
+    description: '',
+    columns: {},
+    patchPath: '',
   };
 }

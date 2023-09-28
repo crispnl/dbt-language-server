@@ -31,10 +31,23 @@ export function traverse(
   >,
 ): void {
   const node = unknownNode as Node;
+  let nodeType = node.node;
+  let innerNode = node[node.node];
 
-  const nodeActions = actions.get(node.node);
+  // Some nodes are expanded by the parser, removing the node type
+  // We try to infer these nodetypes by looking for certain fields
+  if ('column' in node && 'expr' in node) {
+    nodeType = 'resolvedComputedColumnNode';
+    innerNode = node;
+  } else if ('withQueryName' in node && 'withSubquery' in node) {
+    nodeType = 'resolvedWithEntryNode';
+    innerNode = node;
+  }
+
+  const nodeActions = actions.get(nodeType);
+
   if (nodeActions) {
-    nodeActions.actionBefore(node[node.node]);
+    nodeActions.actionBefore(innerNode);
   }
 
   for (const key of Object.keys(node)) {
@@ -45,7 +58,7 @@ export function traverse(
   }
 
   if (nodeActions?.actionAfter) {
-    nodeActions.actionAfter(node[node.node]);
+    nodeActions.actionAfter(innerNode);
   }
 }
 
