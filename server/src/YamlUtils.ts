@@ -17,7 +17,17 @@ export const YamlUtils = {
   },
 
   writeYamlFile(contents: unknown, filePath: string): void {
-    const strContents = yaml.stringify(contents);
+    const yamlDoc = new yaml.Document(contents);
+    yaml.visit(yamlDoc.contents, {
+      Scalar(_key: number | string | null, node: yaml.Scalar): undefined {
+        if (node.value === 'on') {
+          node.type = 'QUOTE_SINGLE';
+        }
+      },
+    });
+
+    // There are some values like 'on', dbt treats as a boolean, so we enforce quoted values.
+    const strContents = yamlDoc.toString();
     fs.writeFileSync(filePath, strContents);
   },
 };

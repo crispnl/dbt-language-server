@@ -156,10 +156,16 @@ export class ZetaSqlAst {
       return result;
     }
 
-    result.outputColumns = resolvedStatementNode.outputColumnList.map(c => ({
-      columnId: c.column?.columnId,
-      name: c.column?.name,
-    }));
+    result.outputColumns = resolvedStatementNode.outputColumnList.flatMap(c =>
+      c.column
+        ? [
+            {
+              columnId: c.column.columnId,
+              name: c.column.name,
+            },
+          ]
+        : [],
+    );
 
     const cteMaps: Record<string, { targetColumnId: Long }[]> = {};
 
