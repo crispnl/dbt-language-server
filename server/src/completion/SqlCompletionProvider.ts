@@ -3,6 +3,7 @@ import { DestinationDefinition } from '../DestinationDefinition';
 import { HelpProviderWords } from '../HelpProviderWords';
 import { SupportedDestinations } from '../ZetaSqlApi';
 import { ActiveTableInfo, CompletionInfo, WithSubqueryInfo } from '../ZetaSqlAst';
+import { CompletionTextInput } from './CompletionProvider';
 
 export class SqlCompletionProvider {
   static readonly BQ_KEYWORDS = [
@@ -239,7 +240,7 @@ export class SqlCompletionProvider {
   ];
 
   async onSqlCompletion(
-    text: string,
+    text: CompletionTextInput,
     completionParams: CompletionParams,
     destinationDefinition?: DestinationDefinition,
     completionInfo?: CompletionInfo,
@@ -247,11 +248,11 @@ export class SqlCompletionProvider {
     aliases?: Map<string, string>,
   ): Promise<CompletionItem[]> {
     const result: CompletionItem[] = [];
-    const columnsOnly = completionParams.context?.triggerKind === CompletionTriggerKind.TriggerCharacter;
+    const columnsOnly = completionParams.context?.triggerKind === CompletionTriggerKind.TriggerCharacter || text[1] !== undefined;
 
     if (completionInfo && completionInfo.activeTables.length > 0) {
       if (columnsOnly) {
-        result.push(...this.getColumnsForActiveTable(text, completionInfo.activeTables));
+        result.push(...this.getColumnsForActiveTable(text[0], completionInfo.activeTables));
       } else {
         result.push(...this.getColumnsForActiveTables(completionInfo.activeTables));
       }
@@ -260,13 +261,11 @@ export class SqlCompletionProvider {
     }
 
     if (completionInfo && completionInfo.withNames.size > 0) {
-      result.push(...this.getColumnsForWithQueries(completionInfo.withSubqueries, columnsOnly, aliases, text));
+      result.push(...this.getColumnsForWithQueries(completionInfo.withSubqueries, columnsOnly, aliases, text[0]));
     }
 
-    console.log(aliases);
-
     if (columnsOnly) {
-      result.push(...(await this.getTableSuggestions(text, destinationDefinition)));
+      result.push(...(await this.getTableSuggestions(text[1] || text[0], destinationDefinition)));
     } else if (destination !== 'snowflake') {
       result.push(...this.getKeywords(), ...this.getFunctions());
     }

@@ -1,4 +1,3 @@
-import { AnalyzeResponse__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/local_service/AnalyzeResponse';
 import { CompletionItem, CompletionParams, Position, Range } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { DbtRepository } from '../DbtRepository';
@@ -6,10 +5,15 @@ import { DestinationContext } from '../DestinationContext';
 import { JinjaParser, JinjaPartType } from '../JinjaParser';
 import { DbtTextDocument, QueryParseInformation } from '../document/DbtTextDocument';
 import { DiffUtils } from '../utils/DiffUtils';
-import { comparePositions, getIdentifierRangeAtPosition } from '../utils/Utils';
+import { comparePositions } from '../utils/Utils';
 import { DbtCompletionProvider } from './DbtCompletionProvider';
 import { SnippetsCompletionProvider } from './SnippetsCompletionProvider';
 import { SqlCompletionProvider } from './SqlCompletionProvider';
+import { getWordRangeAtPosition } from '../utils/TextUtils';
+import { AnalyzeResponse__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/local_service/AnalyzeResponse';
+
+// string[] is a better signature but this way TS doesn't complain
+export type CompletionTextInput = [string, string | undefined];
 
 export class CompletionProvider {
   sqlCompletionProvider = new SqlCompletionProvider();
@@ -35,9 +39,10 @@ export class CompletionProvider {
     if (dbtCompletionItems) {
       return dbtCompletionItems;
     }
-    const text = this.getCompletionText(completionParams);
-    const snippetItems = this.snippetsCompletionProvider.provideSnippets(text);
-    const sqlItems = await this.provideSqlCompletions(completionParams, text, ast, queryInformation);
+    const completionText = this.getCompletionText(completionParams);
+    const [tableOrColumn, column] = completionText;
+    const snippetItems = this.snippetsCompletionProvider.provideSnippets(column ?? tableOrColumn);
+    const sqlItems = await this.provideSqlCompletions(completionParams, completionText, ast, queryInformation);
     return [...snippetItems, ...sqlItems];
   }
 
@@ -62,7 +67,7 @@ export class CompletionProvider {
 
   private async provideSqlCompletions(
     completionParams: CompletionParams,
-    text: string,
+    text: CompletionTextInput,
     ast?: AnalyzeResponse__Output,
     queryInformation?: QueryParseInformation,
   ): Promise<CompletionItem[]> {
@@ -79,7 +84,6 @@ export class CompletionProvider {
       completionInfo = DbtTextDocument.ZETA_SQL_AST.getCompletionInfo(ast, offset);
 
       aliases = queryInformation?.selects.find(s => offset >= s.parseLocationRange.start && offset <= s.parseLocationRange.end)?.tableAliases;
-      console.log(queryInformation);
     }
 
     return this.sqlCompletionProvider.onSqlCompletion(
@@ -92,11 +96,17 @@ export class CompletionProvider {
     );
   }
 
-  private getCompletionText(completionParams: CompletionParams): string {
+  private getCompletionText(completionParams: CompletionParams): CompletionTextInput {
     const previousPosition = Position.create(
       completionParams.position.line,
       completionParams.position.character > 0 ? completionParams.position.character - 1 : 0,
     );
-    return this.rawDocument.getText(getIdentifierRangeAtPosition(previousPosition, this.rawDocument.getText()));
+
+    return this.rawDocument
+      .getText(
+        getWordRangeAtPosition(previousPosition, /[.|\w|`]+/, this.rawDocument.getText().split('\n')) ??
+          Range.create(previousPosition, previousPosition),
+      )
+      .split('.') as CompletionTextInput;
   }
 }
