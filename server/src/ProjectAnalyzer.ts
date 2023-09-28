@@ -177,7 +177,6 @@ export class ProjectAnalyzer {
         parseResult: {
           functions: [],
           selects: [],
-          definitions: [],
         },
       };
     }
@@ -260,7 +259,6 @@ export class ProjectAnalyzer {
       parseResult: {
         functions: [],
         selects: [],
-        definitions: [],
       },
     };
   }

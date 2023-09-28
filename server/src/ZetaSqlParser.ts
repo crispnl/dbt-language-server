@@ -22,11 +22,6 @@ interface KnownColumn {
 }
 
 export interface ParseResult {
-  definitions: {
-    name: string;
-    alias: string;
-    parseLocationRange: ParseLocationRangeProto__Output;
-  }[];
   functions: string[][];
   selects: KnownSelect[];
 }
@@ -38,7 +33,6 @@ export class ZetaSqlParser {
     const result: ParseResult = {
       functions: [],
       selects: [],
-      definitions: [],
     };
     const parseResult = await this.parse(sqlStatement, options);
     const parentSelect: KnownSelect[] = [];
