@@ -2,7 +2,7 @@ import { BigQuery, BigQueryOptions } from '@google-cloud/bigquery';
 import { Result, err, ok } from 'neverthrow';
 import { DbtDestinationClient } from '../DbtDestinationClient';
 import { DbtProfile, TargetConfig } from '../DbtProfile';
-import { YamlParserUtils } from '../YamlParserUtils';
+import { YamlUtils } from '../YamlUtils';
 import { BigQueryClient } from './BigQueryClient';
 
 export class BigQueryServiceAccountProfile implements DbtProfile {
@@ -33,7 +33,7 @@ export class BigQueryServiceAccountProfile implements DbtProfile {
 
   private async createClientInternal(profile: Required<TargetConfig>): Promise<Result<DbtDestinationClient, string>> {
     const { project } = profile;
-    const keyFilePath = YamlParserUtils.replaceTilde(profile.keyfile);
+    const keyFilePath = YamlUtils.replaceTilde(profile.keyfile);
 
     const options: BigQueryOptions = {
       projectId: project,

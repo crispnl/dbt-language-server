@@ -1,5 +1,5 @@
 import { SnowflakeUserPassProfile } from '../../snowflake/SnowflakeUserPassProfile';
-import { YamlParserUtils } from '../../YamlParserUtils';
+import { YamlUtils } from '../../YamlUtils';
 import { getConfigPath, shouldPassValidProfile, shouldRequireProfileField, SNOWFLAKE_CONFIG } from '../helper';
 
 describe('SnowflakeUserPassProfile', () => {
@@ -29,7 +29,7 @@ describe('SnowflakeUserPassProfile', () => {
 });
 
 function shouldRequireField(field: string): void {
-  const profiles = YamlParserUtils.parseYamlFile(getConfigPath(SNOWFLAKE_CONFIG));
+  const profiles = YamlUtils.parseYamlFile(getConfigPath(SNOWFLAKE_CONFIG));
   const oauthTokenBasedProfile = new SnowflakeUserPassProfile();
   shouldRequireProfileField(profiles, oauthTokenBasedProfile, `user_password_missing_${field}`, field);
 }

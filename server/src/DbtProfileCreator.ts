@@ -1,11 +1,11 @@
 import { Err, err, ok, Result } from 'neverthrow';
 import { URI } from 'vscode-uri';
-import { DbtProfile, ProfileYaml, TargetConfig, SupportedProfileName } from './DbtProfile';
+import { DbtProfile, ProfileYaml, SupportedProfileName, TargetConfig } from './DbtProfile';
 import { BIG_QUERY_PROFILES, PROFILE_METHODS, SNOWFLAKE_PROFILES } from './DbtProfileType';
 import { DbtProject } from './DbtProject';
 import { DbtRepository } from './DbtRepository';
 import { evalProfilesYmlJinjaEnvVar } from './utils/JinjaUtils';
-import { YamlParserUtils } from './YamlParserUtils';
+import { YamlUtils } from './YamlUtils';
 
 export interface DbtProfileInfo {
   type?: string;
@@ -75,7 +75,7 @@ export class DbtProfileCreator {
   createDbtProfile(): Result<DbtProfileSuccess, DbtProfileError> {
     let profiles: unknown = undefined;
     try {
-      profiles = YamlParserUtils.parseYamlFile(this.profilesYmlPath);
+      profiles = YamlUtils.parseYamlFile(this.profilesYmlPath);
     } catch (e) {
       const message = `Failed to open and parse file '${this.profilesYmlPath}'. ${e instanceof Error ? e.message : String(e)}`;
       console.log(message);

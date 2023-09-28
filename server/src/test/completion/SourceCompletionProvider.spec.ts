@@ -25,9 +25,10 @@ describe('SourceCompletionProvider', () => {
         name: 'table_1',
         packageName: PROJECT_PACKAGE,
         sourceName: 'source_1',
-        columns: [],
+        columns: {},
         database: '',
         schema: '',
+        description: '',
       },
       {
         uniqueId: 'source_1_2_id',
@@ -35,9 +36,10 @@ describe('SourceCompletionProvider', () => {
         name: 'table_2',
         packageName: PROJECT_PACKAGE,
         sourceName: 'source_1',
-        columns: [],
+        columns: {},
         database: '',
         schema: '',
+        description: '',
       },
       {
         uniqueId: 'installed_package_source_1_1_id',
@@ -45,9 +47,10 @@ describe('SourceCompletionProvider', () => {
         name: 'installed_package_source_table_1',
         packageName: INSTALLED_PACKAGE,
         sourceName: 'package_source_1',
-        columns: [],
+        columns: {},
         database: '',
         schema: '',
+        description: '',
       },
       {
         uniqueId: 'installed_package_source_1_2_id',
@@ -55,9 +58,10 @@ describe('SourceCompletionProvider', () => {
         name: 'installed_package_source_table_2',
         packageName: INSTALLED_PACKAGE,
         sourceName: 'package_source_1',
-        columns: [],
+        columns: {},
         database: '',
         schema: '',
+        description: '',
       },
     ];
     dbtRepository.updateDbtNodes([], sources, [], new Dag([]));

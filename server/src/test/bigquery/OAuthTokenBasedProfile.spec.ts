@@ -1,5 +1,5 @@
 import { BigQueryOAuthTokenBasedProfile } from '../../bigquery/BigQueryOAuthTokenBasedProfile';
-import { YamlParserUtils } from '../../YamlParserUtils';
+import { YamlUtils } from '../../YamlUtils';
 import {
   BIG_QUERY_CONFIG,
   BQ_OAUTH_REFRESH,
@@ -20,13 +20,13 @@ describe('OAuth token based profile', () => {
   });
 
   it('Should require oauth temporary token', () => {
-    const profiles = YamlParserUtils.parseYamlFile(getConfigPath(BIG_QUERY_CONFIG));
+    const profiles = YamlUtils.parseYamlFile(getConfigPath(BIG_QUERY_CONFIG));
     const oauthTokenBasedProfile = new BigQueryOAuthTokenBasedProfile();
     shouldRequireProfileField(profiles, oauthTokenBasedProfile, BQ_OAUTH_TEMPORARY_MISSING_TOKEN, 'token');
   });
 
   it('Should require oauth refresh token fields', () => {
-    const profiles = YamlParserUtils.parseYamlFile(getConfigPath(BIG_QUERY_CONFIG));
+    const profiles = YamlUtils.parseYamlFile(getConfigPath(BIG_QUERY_CONFIG));
     const oauthTokenBasedProfile = new BigQueryOAuthTokenBasedProfile();
 
     shouldRequireProfileField(profiles, oauthTokenBasedProfile, BQ_OAUTH_REFRESH_MISSING_REFRESH_TOKEN, 'refresh_token');

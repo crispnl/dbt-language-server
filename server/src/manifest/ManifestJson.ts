@@ -22,6 +22,9 @@ export interface ManifestModel extends ManifestNode {
     materialized?: string;
     schema?: string;
   };
+  description: string;
+  columns: Record<string, { name: string; description: string }>;
+  patchPath: string;
 }
 
 export type ManifestMacro = ManifestNode;
@@ -30,14 +33,16 @@ export interface ManifestSource extends ManifestNode {
   database: string;
   schema: string;
   sourceName: string;
-  columns: string[];
+  description: string;
+  columns: Record<string, { name: string; description: string }>;
 }
 
 export interface ManifestSeed extends ManifestNode {
   database: string;
   schema: string;
   sourceName: string;
-  columns: string[];
+  description: string;
+  columns: Record<string, { name: string; description: string }>;
 }
 
 export interface ManifestJson {
