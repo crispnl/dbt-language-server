@@ -60,11 +60,11 @@ import { ModelCompiler } from '../ModelCompiler';
 import { ModelProgressReporter } from '../ModelProgressReporter';
 import { NotificationSender } from '../NotificationSender';
 import { ProcessExecutor } from '../ProcessExecutor';
+import { AnalyzeResult } from '../ProjectAnalyzer';
 import { ProjectChangeListener } from '../ProjectChangeListener';
 import { SignatureHelpProvider } from '../SignatureHelpProvider';
 import { DbtProjectStatusSender } from '../status_bar/DbtProjectStatusSender';
 import { LspServerBase } from './LspServerBase';
-import { AnalyzeResult } from '../ProjectAnalyzer';
 
 export class LspServer extends LspServerBase<FeatureFinder> {
   sqlToRefCommandName = randomUUID();
@@ -337,7 +337,12 @@ export class LspServer extends LspServerBase<FeatureFinder> {
   }
 
   onGenerateDocumentation(uri: string): void {
-    this.getOpenedDocumentByUri(uri)?.generateDocumentation();
+    const doc = this.getOpenedDocumentByUri(uri);
+    if (doc) {
+      doc.generateDocumentation();
+    } else {
+      this.notificationSender.sendWarning('Open a DBT model file first.');
+    }
   }
 
   async onResendDiagnostics(uri: string): Promise<void> {
