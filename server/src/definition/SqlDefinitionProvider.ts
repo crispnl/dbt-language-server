@@ -7,13 +7,13 @@ import { PositionConverter } from '../PositionConverter';
 import { AnalyzeResult } from '../ProjectAnalyzer';
 import { Location } from '../ZetaSqlAst';
 import { DbtTextDocument, QueryParseInformation, QueryParseInformationSelectColumn } from '../document/DbtTextDocument';
+import { LspServer } from '../lsp_server/LspServer';
+import { ManifestModel } from '../manifest/ManifestJson';
 import { getTableRefUniqueId } from '../utils/ManifestUtils';
 import { arraysAreEqual, getPositionByIndex, positionInRange, rangesOverlap } from '../utils/Utils';
 import { rangesEqual } from '../utils/ZetaSqlUtils';
-import { LspServer } from '../lsp_server/LspServer';
-import path = require('node:path');
 import { DbtDefinitionProvider } from './DbtDefinitionProvider';
-import { ManifestModel } from '../manifest/ManifestJson';
+import path = require('node:path');
 import { ParseLocationRangeProto__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/ParseLocationRangeProto';
 
 export class SqlDefinitionProvider {
