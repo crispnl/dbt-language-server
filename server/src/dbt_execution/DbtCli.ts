@@ -11,6 +11,7 @@ import { DbtCliCompileJob } from './DbtCliCompileJob';
 import { DbtCommandExecutor } from './DbtCommandExecutor';
 import { DbtCompileJob } from './DbtCompileJob';
 import slash = require('slash');
+import path from 'node:path';
 
 export class DbtCli {
   dbtReady = false;
@@ -33,7 +34,10 @@ export class DbtCli {
       .catch(e => console.log(`Failed to start macroCompilationServer: ${e instanceof Error ? e.message : String(e)}`));
   }
 
-  compile(modelName?: string): PromiseWithChild<{
+  compile(
+    modelName?: string,
+    modifiedOnly?: boolean,
+  ): PromiseWithChild<{
     stdout: string;
     stderr: string;
   }> {
@@ -42,7 +46,12 @@ export class DbtCli {
       params.push('-m', `+${slash(modelName)}`);
     } else {
       params.push('--exclude', 'resource_type:test'); // We ignore tests altogether
+
+      if (modifiedOnly) {
+        params.push('-m', 'state:modified', '--state', path.resolve('.dbt-track-manifest'));
+      }
     }
+
     const log = (data: string): void => console.log(data);
 
     if (!this.macroCompilationServer.port) {
@@ -68,8 +77,8 @@ export class DbtCli {
     this.onDbtReadyEmitter.fire();
   }
 
-  createCompileJob(modelPath: string | undefined, dbtRepository: DbtRepository, allowFallback: boolean): DbtCompileJob {
-    return new DbtCliCompileJob(modelPath, dbtRepository, allowFallback, this);
+  createCompileJob(modelPath: string | undefined, dbtRepository: DbtRepository, allowFallback: boolean, useTrackManifest?: boolean): DbtCompileJob {
+    return new DbtCliCompileJob(modelPath, dbtRepository, allowFallback, this, useTrackManifest || false);
   }
 
   cancelCompileProject(): void {

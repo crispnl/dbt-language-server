@@ -1,3 +1,4 @@
+import * as fs from 'node:fs';
 import { Diagnostic, FileChangeType, FileEvent } from 'vscode-languageserver';
 import { URI } from 'vscode-uri';
 import { DbtRepository } from './DbtRepository';
@@ -11,6 +12,7 @@ import { AnalyzeResult, ModelsAnalyzeResult } from './ProjectAnalyzer';
 import { ProjectProgressReporter } from './ProjectProgressReporter';
 import { DbtCli } from './dbt_execution/DbtCli';
 import { DbtTextDocument } from './document/DbtTextDocument';
+import { ManifestParser } from './manifest/ManifestParser';
 import { debounce } from './utils/Utils';
 import path = require('node:path');
 
@@ -59,7 +61,9 @@ export class ProjectChangeListener {
 
     // While dbt compiles, we pull remote schemas from all our sources, so we can speed up analysis and
     // provide hints on currently unreferenced sources.
-    const [compileResult] = await Promise.all([this.dbtCli.compileProject(this.dbtRepository), this.analyzeSources(), this.analyzeSeeds()]);
+    const useTrackManifest = fs.existsSync(ManifestParser.getManifestPath('.dbt-track-manifest'));
+    const compileJob = this.dbtCli.createCompileJob(undefined, this.dbtRepository, true, useTrackManifest);
+    const [compileResult] = await Promise.all([compileJob.start(), this.analyzeSources(), this.analyzeSeeds()]);
 
     if (compileResult.isOk()) {
       this.updateManifest();

@@ -5,6 +5,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { performance } from 'node:perf_hooks';
 
+import { ParseResponse__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/local_service/ParseResponse';
 import {
   _Connection,
   CodeAction,
@@ -60,12 +61,10 @@ import { ModelCompiler } from '../ModelCompiler';
 import { ModelProgressReporter } from '../ModelProgressReporter';
 import { NotificationSender } from '../NotificationSender';
 import { ProcessExecutor } from '../ProcessExecutor';
-import { AnalyzeResult } from '../ProjectAnalyzer';
 import { ProjectChangeListener } from '../ProjectChangeListener';
 import { SignatureHelpProvider } from '../SignatureHelpProvider';
 import { DbtProjectStatusSender } from '../status_bar/DbtProjectStatusSender';
 import { LspServerBase } from './LspServerBase';
-import { ParseResponse__Output } from '@fivetrandevelopers/zetasql/lib/types/zetasql/local_service/ParseResponse';
 
 export class LspServer extends LspServerBase<FeatureFinder> {
   sqlToRefCommandName = randomUUID();
