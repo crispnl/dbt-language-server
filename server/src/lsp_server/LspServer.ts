@@ -60,6 +60,7 @@ import { ModelCompiler } from '../ModelCompiler';
 import { ModelProgressReporter } from '../ModelProgressReporter';
 import { NotificationSender } from '../NotificationSender';
 import { ProcessExecutor } from '../ProcessExecutor';
+import { AnalyzeResult } from '../ProjectAnalyzer';
 import { ProjectChangeListener } from '../ProjectChangeListener';
 import { SignatureHelpProvider } from '../SignatureHelpProvider';
 import { DbtProjectStatusSender } from '../status_bar/DbtProjectStatusSender';
@@ -176,6 +177,7 @@ export class LspServer extends LspServerBase<FeatureFinder> {
     this.connection.onNotification('custom/dbtCompile', (uri: string) => this.onDbtCompile(uri));
     this.connection.onNotification('WizardForDbtCore(TM)/resendDiagnostics', (uri: string) => this.onResendDiagnostics(uri));
     this.connection.onNotification('custom/analyzeEntireProject', () => this.onAnalyzeEntireProject());
+    this.connection.onNotification('custom/generateDocumentation', (uri: string) => this.onGenerateDocumentation(uri));
 
     this.connection.onRequest('WizardForDbtCore(TM)/getListOfPackages', () => this.featureFinder.packageInfosPromise.get());
     this.connection.onRequest('WizardForDbtCore(TM)/getCompiledSql', async (uri: string) => {
@@ -333,6 +335,15 @@ export class LspServer extends LspServerBase<FeatureFinder> {
 
   onDbtCompile(uri: string): void {
     this.getOpenedDocumentByUri(uri)?.forceRecompile();
+  }
+
+  onGenerateDocumentation(uri: string): void {
+    const doc = this.getOpenedDocumentByUri(uri);
+    if (doc) {
+      doc.generateDocumentation();
+    } else {
+      this.notificationSender.sendWarning('Open a DBT model file first.');
+    }
   }
 
   async onResendDiagnostics(uri: string): Promise<void> {

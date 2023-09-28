@@ -145,6 +145,11 @@
         "command": "WizardForDbtCore(TM).restart",
         "title": "Restart Wizard for dbt Core (TM)",
         "category": "WizardForDbtCore(TM)"
+      },
+      {
+        "command": "WizardForDbtCore(TM).generateDocumentation",
+        "title": "Generate documentation for current model",
+        "category": "WizardForDbtCore(TM)"
       }
     ],
     "menus": {

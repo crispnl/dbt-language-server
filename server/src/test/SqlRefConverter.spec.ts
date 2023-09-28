@@ -31,6 +31,9 @@ describe('SqlRefConverter', () => {
             nodes: [],
           },
           refs: [],
+          description: '',
+          columns: {},
+          patchPath: '',
         }),
       ]),
     );
@@ -82,6 +85,9 @@ function createManifestModels(length: number): ManifestModel[] {
       nodes: [],
     },
     refs: [],
+    description: '',
+    columns: {},
+    patchPath: '',
   }));
 }
 

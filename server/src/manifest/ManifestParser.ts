@@ -16,7 +16,7 @@ interface RawNode {
   compiled_sql: string;
   compiled_code?: string;
   source_name: string;
-  columns: { name: string }[];
+  columns: Record<string, { name: string; description: string }>;
   depends_on: {
     nodes: string[];
   };
@@ -27,6 +27,8 @@ interface RawNode {
     materialized?: string;
     schema?: string;
   };
+  description: string;
+  patch_path: string;
 }
 
 interface RawManifest {
@@ -97,6 +99,9 @@ export class ManifestParser {
             materialized: n.config?.materialized,
             schema: n.config?.schema,
           },
+          columns: n.columns,
+          description: n.description,
+          patchPath: n.patch_path,
         }));
     }
     return [];
@@ -126,9 +131,10 @@ export class ManifestParser {
           name: n.name,
           packageName: n.package_name,
           sourceName: n.source_name,
-          columns: Object.values(n.columns).map(c => c.name),
+          columns: n.columns,
           database: n.database,
           schema: n.schema,
+          description: n.description,
         }));
     }
     return [];
@@ -144,9 +150,10 @@ export class ManifestParser {
           name: n.name,
           packageName: n.package_name,
           sourceName: n.source_name,
-          columns: Object.values(n.columns).map(c => c.name),
+          columns: n.columns,
           database: n.database,
           schema: n.schema,
+          description: n.description,
         }));
     }
     return [];
