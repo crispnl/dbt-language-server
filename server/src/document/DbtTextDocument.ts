@@ -402,6 +402,7 @@ export class DbtTextDocument {
     return this.completionProvider.provideCompletionItems(
       completionParams,
       this.analyzeResult?.ast.isOk() ? this.analyzeResult.ast.value : undefined,
+      this.queryInformation,
     );
   }
 

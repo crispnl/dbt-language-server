@@ -4,7 +4,7 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { DbtRepository } from '../DbtRepository';
 import { DestinationContext } from '../DestinationContext';
 import { JinjaParser, JinjaPartType } from '../JinjaParser';
-import { DbtTextDocument } from '../document/DbtTextDocument';
+import { DbtTextDocument, QueryParseInformation } from '../document/DbtTextDocument';
 import { DiffUtils } from '../utils/DiffUtils';
 import { comparePositions, getIdentifierRangeAtPosition } from '../utils/Utils';
 import { DbtCompletionProvider } from './DbtCompletionProvider';
@@ -26,14 +26,18 @@ export class CompletionProvider {
     this.dbtCompletionProvider = new DbtCompletionProvider(dbtRepository);
   }
 
-  async provideCompletionItems(completionParams: CompletionParams, ast?: AnalyzeResponse__Output): Promise<CompletionItem[]> {
+  async provideCompletionItems(
+    completionParams: CompletionParams,
+    ast?: AnalyzeResponse__Output,
+    queryInformation?: QueryParseInformation,
+  ): Promise<CompletionItem[]> {
     const dbtCompletionItems = this.provideDbtCompletions(completionParams);
     if (dbtCompletionItems) {
       return dbtCompletionItems;
     }
     const text = this.getCompletionText(completionParams);
     const snippetItems = this.snippetsCompletionProvider.provideSnippets(text);
-    const sqlItems = await this.provideSqlCompletions(completionParams, text, ast);
+    const sqlItems = await this.provideSqlCompletions(completionParams, text, ast, queryInformation);
     return [...snippetItems, ...sqlItems];
   }
 
@@ -56,23 +60,35 @@ export class CompletionProvider {
     return undefined;
   }
 
-  private async provideSqlCompletions(completionParams: CompletionParams, text: string, ast?: AnalyzeResponse__Output): Promise<CompletionItem[]> {
+  private async provideSqlCompletions(
+    completionParams: CompletionParams,
+    text: string,
+    ast?: AnalyzeResponse__Output,
+    queryInformation?: QueryParseInformation,
+  ): Promise<CompletionItem[]> {
     if (this.destinationContext.isEmpty()) {
       return [];
     }
+
+    let aliases: Map<string, string> | undefined;
 
     let completionInfo = undefined;
     if (ast) {
       const line = DiffUtils.getOldLineNumber(this.compiledDocument.getText(), this.rawDocument.getText(), completionParams.position.line);
       const offset = this.compiledDocument.offsetAt(Position.create(line, completionParams.position.character));
       completionInfo = DbtTextDocument.ZETA_SQL_AST.getCompletionInfo(ast, offset);
+
+      aliases = queryInformation?.selects.find(s => offset >= s.parseLocationRange.start && offset <= s.parseLocationRange.end)?.tableAliases;
+      console.log(queryInformation);
     }
+
     return this.sqlCompletionProvider.onSqlCompletion(
       text,
       completionParams,
       this.destinationContext.destinationDefinition,
       completionInfo,
       this.destinationContext.getDestination(),
+      aliases,
     );
   }
 
