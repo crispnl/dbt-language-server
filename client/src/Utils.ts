@@ -60,3 +60,24 @@ export function wait(ms: number): Promise<void> {
     setTimeout(resolve, ms);
   });
 }
+
+export function humanFileSize(bytes: number, si: boolean = false, decimals: number = 1): string {
+  const thresh = si ? 1000 : 1024;
+
+  if (Math.abs(bytes) < thresh) {
+    return `${bytes} B`;
+  }
+
+  const units = si ? ['kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'] : ['KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
+  let u = -1;
+  const r = 10 ** decimals;
+
+  let nBytes = bytes;
+
+  do {
+    nBytes /= thresh;
+    ++u;
+  } while (Math.round(Math.abs(nBytes) * r) / r >= thresh && u < units.length - 1);
+
+  return `${nBytes.toFixed(decimals)} ${units[u]}`;
+}

@@ -1,10 +1,10 @@
+import { Result } from 'neverthrow';
 import { Emitter, Event } from 'vscode-languageserver';
 import { DbtRepository } from './DbtRepository';
 import { LogLevel } from './Logger';
 import { DbtCli } from './dbt_execution/DbtCli';
 import { DbtCompileJob } from './dbt_execution/DbtCompileJob';
 import { wait } from './utils/Utils';
-import { Result } from 'neverthrow';
 
 export class ModelCompiler {
   private dbtCompileJobQueue: DbtCompileJob[] = [];
@@ -47,8 +47,8 @@ export class ModelCompiler {
     await this.pollResults();
   }
 
-  async startNewJob(modelPath: string, allowFallback: boolean): Promise<Result<undefined, string> | void> {
-    const job = this.dbtCli.createCompileJob(modelPath, this.dbtRepository, allowFallback);
+  async startNewJob(modelPath: string, allowFallback: boolean, target?: string): Promise<Result<undefined, string> | void> {
+    const job = this.dbtCli.createCompileJob(modelPath, this.dbtRepository, allowFallback, false, target);
     this.dbtCompileJobQueue.push(job);
     try {
       return await job.start();

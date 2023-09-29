@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
-import * as yaml from 'yaml';
 import { commands, ExtensionContext, languages, TextDocument, TextEditor, Uri, ViewColumn, window, workspace, WorkspaceFolder } from 'vscode';
+import * as yaml from 'yaml';
 import { ActiveTextEditorHandler } from './ActiveTextEditorHandler';
 import { CommandManager } from './commands/CommandManager';
 import { Compile } from './commands/Compile';
@@ -22,13 +22,13 @@ import { EventEmitter } from 'node:events';
 import * as path from 'node:path';
 import { AnalyzeEntireProject } from './commands/AnalyzeEntireProject';
 import { CreateDbtProject } from './commands/CreateDbtProject/CreateDbtProject';
-import { UseConfigForRefsPreview } from './commands/UseConfigForRefsPreview';
-import { NotUseConfigForRefsPreview } from './commands/NotUseConfigForRefsPreview';
-import { DryRunDev } from './commands/DryRun/DryRunDev';
-import { DryRunStaging } from './commands/DryRun/DryRunStaging';
-import { DryRunProd } from './commands/DryRun/DryRunProd';
 import { tryReadFile } from './commands/DryRun/DryRun';
+import { DryRunDev } from './commands/DryRun/DryRunDev';
+import { DryRunProd } from './commands/DryRun/DryRunProd';
+import { DryRunStaging } from './commands/DryRun/DryRunStaging';
 import { GenerateDocumentation } from './commands/GenerateDocumentation';
+import { NotUseConfigForRefsPreview } from './commands/NotUseConfigForRefsPreview';
+import { UseConfigForRefsPreview } from './commands/UseConfigForRefsPreview';
 
 export interface PackageJson {
   name: string;
@@ -36,16 +36,13 @@ export interface PackageJson {
   aiKey: string;
 }
 
-export interface DBTProjectConfiguration {
-  dbt_crisp_dwh?: {
+export type DBTProjectConfiguration = Record<
+  string,
+  {
     target: string;
-    outputs: {
-      dev?: ProjectTarget;
-      staging?: ProjectTarget;
-      prod?: ProjectTarget;
-    };
-  };
-}
+    outputs: Record<string, ProjectTarget | undefined>;
+  }
+>;
 
 interface ProjectTarget {
   type: 'bigquery';
@@ -149,14 +146,22 @@ export class ExtensionClient {
         await commands.executeCommand('workbench.action.keepEditor');
       }
     }
-
-    await commands.executeCommand('setContext', 'WizardForDbtCore:hasProdEnvironment', Boolean(dbtProjectConfiguration.dbt_crisp_dwh?.outputs.prod));
+    // TODO: Soft-code and make it a two-step command; select target from profiles.yml
+    await commands.executeCommand(
+      'setContext',
+      'WizardForDbtCore:hasProdEnvironment',
+      Boolean(dbtProjectConfiguration['dbt_crisp_dwh'].outputs['prod']),
+    );
     await commands.executeCommand(
       'setContext',
       'WizardForDbtCore:hasStagingEnvironment',
-      Boolean(dbtProjectConfiguration.dbt_crisp_dwh?.outputs.staging),
+      Boolean(dbtProjectConfiguration['dbt_crisp_dwh'].outputs['staging']),
     );
-    await commands.executeCommand('setContext', 'WizardForDbtCore:hasDevEnvironment', Boolean(dbtProjectConfiguration.dbt_crisp_dwh?.outputs.dev));
+    await commands.executeCommand(
+      'setContext',
+      'WizardForDbtCore:hasDevEnvironment',
+      Boolean(dbtProjectConfiguration['dbt_crisp_dwh'].outputs['dev']),
+    );
 
     await this.dbtLanguageClientManager.ensureNoProjectClient();
   }

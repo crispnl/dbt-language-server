@@ -350,6 +350,7 @@ export class DbtTextDocument {
       // which may cause formatting differences. Also, if the file is open, it would be nicer
       // to not overwrite the file, but apply the patches inside the editor
       YamlUtils.writeYamlFile(docsYaml, docsPath);
+      this.modelProgressReporter.sendFinish(this.rawDocument.uri);
     }
   }
 

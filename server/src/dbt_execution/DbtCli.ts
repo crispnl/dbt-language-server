@@ -1,5 +1,6 @@
 import { Result, err, ok } from 'neverthrow';
 import { PromiseWithChild } from 'node:child_process';
+import path from 'node:path';
 import { Emitter, Event, _Connection } from 'vscode-languageserver';
 import { DbtRepository } from '../DbtRepository';
 import { InstallUtils } from '../InstallUtils';
@@ -11,7 +12,6 @@ import { DbtCliCompileJob } from './DbtCliCompileJob';
 import { DbtCommandExecutor } from './DbtCommandExecutor';
 import { DbtCompileJob } from './DbtCompileJob';
 import slash = require('slash');
-import path from 'node:path';
 
 export class DbtCli {
   dbtReady = false;
@@ -37,11 +37,17 @@ export class DbtCli {
   compile(
     modelName?: string,
     modifiedOnly?: boolean,
+    target?: string,
   ): PromiseWithChild<{
     stdout: string;
     stderr: string;
   }> {
     const params = ['-f']; // Always compile full-refreshed to avoid issues with partial incremental updates
+
+    if (target) {
+      params.push('-t', target);
+    }
+
     if (modelName) {
       params.push('-m', `+${slash(modelName)}`);
     } else {
@@ -77,8 +83,14 @@ export class DbtCli {
     this.onDbtReadyEmitter.fire();
   }
 
-  createCompileJob(modelPath: string | undefined, dbtRepository: DbtRepository, allowFallback: boolean, useTrackManifest?: boolean): DbtCompileJob {
-    return new DbtCliCompileJob(modelPath, dbtRepository, allowFallback, this, useTrackManifest || false);
+  createCompileJob(
+    modelPath: string | undefined,
+    dbtRepository: DbtRepository,
+    allowFallback: boolean,
+    useTrackManifest?: boolean,
+    target?: string,
+  ): DbtCompileJob {
+    return new DbtCliCompileJob(modelPath, dbtRepository, allowFallback, this, useTrackManifest || false, target);
   }
 
   cancelCompileProject(): void {

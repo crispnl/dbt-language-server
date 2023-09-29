@@ -1,10 +1,10 @@
-import { DBTProjectConfiguration } from '../../ExtensionClient';
-import * as fs from 'node:fs';
 import { BigQuery } from '@google-cloud/bigquery';
-import { Command } from '../CommandManager';
-import { DbtLanguageClientManager } from '../../DbtLanguageClientManager';
+import * as fs from 'node:fs';
 import { ProgressLocation, window } from 'vscode';
-import { wait } from '../../Utils';
+import { DbtLanguageClientManager } from '../../DbtLanguageClientManager';
+import { DBTProjectConfiguration } from '../../ExtensionClient';
+import { humanFileSize, wait } from '../../Utils';
+import { Command } from '../CommandManager';
 
 // Currently largely unused but nice to have
 interface DryRunMetadata {
@@ -38,10 +38,10 @@ interface DryRunMetadata {
   };
   statistics: {
     creationTime: string;
-    totalBytesProcessed: string;
+    totalBytesProcessed: number;
     query: {
-      totalBytesProcessed: string;
-      totalBytesBilled: string;
+      totalBytesProcessed: number;
+      totalBytesBilled: number;
       cacheHit: boolean;
       referencedTables: Array<{
         projectId: string;
@@ -73,16 +73,10 @@ export abstract class DryRun implements Command {
     private dbtLanguageClientManager: DbtLanguageClientManager,
   ) {}
 
-  async dryRun(environment: 'dev' | 'staging' | 'prod'): Promise<void> {
+  async dryRun(target: string): Promise<void> {
     const activeDocument = this.dbtLanguageClientManager.getActiveDocument();
     if (!activeDocument) {
       await window.showErrorMessage('Active document does not support dry-runs');
-      return;
-    }
-
-    const target = this.dbtProjectConfiguration.dbt_crisp_dwh?.outputs[environment];
-    if (!target) {
-      await window.showErrorMessage(`Failed to find environment ${environment} in DBT configuration file`);
       return;
     }
 
@@ -95,6 +89,7 @@ export abstract class DryRun implements Command {
     await window.withProgress(
       {
         location: ProgressLocation.Notification,
+        cancellable: true,
       },
       async (progress, token) => {
         let totalProgress = 0;
@@ -106,9 +101,28 @@ export abstract class DryRun implements Command {
           totalProgress = newTotalProgress;
         };
 
+        const projectName = await languageClient.sendRequest<string | null>('WizardForDbtCore(TM)/getProjectName');
+
+        if (!projectName) {
+          progress.report({
+            message: 'Failed: unable to retrieve DBT project name',
+          });
+          await wait(5000);
+          return;
+        }
+
+        const output = this.dbtProjectConfiguration[projectName].outputs[target];
+        if (!output) {
+          await window.showErrorMessage(`Failed to find target ${target} in DBT profiles file`);
+          return;
+        }
+
         report('Compiling SQL', 0);
 
-        const compiledSql = await languageClient.sendRequest<string | null>('WizardForDbtCore(TM)/getCompiledSql', activeDocument.uri.toString());
+        const compiledSql = await languageClient.sendRequest<string | null>('WizardForDbtCore(TM)/getCompiledSql', {
+          uri: activeDocument.uri.toString(),
+          target,
+        });
         if (compiledSql === null) {
           progress.report({
             message: 'Failed: unable to get compiled SQL for file',
@@ -121,39 +135,32 @@ export abstract class DryRun implements Command {
           return;
         }
 
-        report(`Starting dry-run job on environment ${environment}`, 10);
+        report(`Starting dry-run job on target ${target}`, 10);
 
         const bigquery = new BigQuery();
-        bigquery.projectId = target.project;
-        bigquery.location = target.location;
-        // Has an async call signature too but it's typed wrongly so let's just use this.
-        await new Promise<void>(resolve => {
-          bigquery.createQueryJob(
-            {
-              dryRun: true,
-              projectId: target.project,
-              defaultDataset: {
-                datasetId: target.dataset,
-                projectId: target.project,
-              },
-              location: target.location,
-              query: compiledSql,
-            },
-            async (err, job) => {
-              if (err) {
-                report(`Failed: ${err.name} - ${err.message}`, 10);
-                await wait(5000);
-                report(`Failed: ${err.name} - ${err.message}`, 100);
-                return;
-              }
+        bigquery.projectId = output.project;
+        bigquery.location = output.location;
 
-              const metadata = job!.metadata as DryRunMetadata;
-              report(`Completed: processed ${metadata.statistics.totalBytesProcessed} bytes`, 100);
-              await wait(5000);
-              resolve();
+        try {
+          const [jobResponse] = await bigquery.createQueryJob({
+            dryRun: true,
+            projectId: output.project,
+            defaultDataset: {
+              datasetId: output.dataset,
+              projectId: output.project,
             },
-          );
-        });
+            location: output.location,
+            query: compiledSql,
+          });
+          const metadata = jobResponse.metadata as DryRunMetadata;
+          report(`Completed: query processes ${humanFileSize(metadata.statistics.totalBytesProcessed)}`, 100);
+          await wait(5000);
+        } catch (e) {
+          if (e instanceof Error) {
+            report(`Failed: ${e.name} - ${e.message}`, 80);
+            await wait(5000);
+          }
+        }
       },
     );
   }

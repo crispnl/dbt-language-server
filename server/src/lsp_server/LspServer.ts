@@ -178,13 +178,18 @@ export class LspServer extends LspServerBase<FeatureFinder> {
     this.connection.onNotification('custom/analyzeEntireProject', () => this.onAnalyzeEntireProject());
     this.connection.onNotification('custom/generateDocumentation', (uri: string) => this.onGenerateDocumentation(uri));
 
+    this.connection.onRequest('WizardForDbtCore(TM)/getProjectName', () => this.getProjectName());
     this.connection.onRequest('WizardForDbtCore(TM)/getListOfPackages', () => this.featureFinder.packageInfosPromise.get());
-    this.connection.onRequest('WizardForDbtCore(TM)/getCompiledSql', async (uri: string) => {
-      const textDocument = this.openedDocumentsLowerCase.get(uri.toLowerCase());
+    this.connection.onRequest('WizardForDbtCore(TM)/getCompiledSql', async (params: { uri: string; target: string }) => {
+      const textDocument = this.openedDocumentsLowerCase.get(params.uri.toLowerCase());
       if (!textDocument) {
         return null;
       }
-      const result = await textDocument.modelCompiler.startNewJob(textDocument.getModelPathOrFullyQualifiedName(), textDocument.modelIsNotBlank());
+      const result = await textDocument.modelCompiler.startNewJob(
+        textDocument.getModelPathOrFullyQualifiedName(),
+        textDocument.modelIsNotBlank(),
+        params.target,
+      );
       if (!result || !result.isOk()) {
         // Compilation failed
         return null;
@@ -195,6 +200,10 @@ export class LspServer extends LspServerBase<FeatureFinder> {
       this.featureFinder.getDbtPackageVersions(dbtPackage),
     );
     this.connection.onRequest('WizardForDbtCore(TM)/addNewDbtPackage', (dbtPackage: SelectedDbtPackage) => this.onAddNewDbtPackage(dbtPackage));
+  }
+
+  getProjectName(): string {
+    return this.dbtProject.findProjectName();
   }
 
   async onInitialized(): Promise<void> {

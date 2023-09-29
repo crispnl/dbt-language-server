@@ -25,6 +25,7 @@ export class DbtCliCompileJob extends DbtCompileJob {
     private allowFallback: boolean,
     private dbtCli: DbtCli,
     private useTrackManifest: boolean,
+    private target?: string,
   ) {
     super();
   }
@@ -35,7 +36,7 @@ export class DbtCliCompileJob extends DbtCompileJob {
       return ok(undefined);
     }
 
-    const promise = this.dbtCli.compile(this.modelPath, this.useTrackManifest);
+    const promise = this.dbtCli.compile(this.modelPath, this.useTrackManifest, this.target);
     this.process = promise.child;
 
     try {
