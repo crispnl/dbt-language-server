@@ -1,7 +1,9 @@
 import { err, ok, Result } from 'neverthrow';
 import { ChildProcess, ExecException } from 'node:child_process';
-import * as fs from 'node:fs';
+import * as fs from 'node:fs/promises';
+import path from 'node:path';
 import { DbtRepository } from '../DbtRepository';
+import { ManifestParser } from '../manifest/ManifestParser';
 import { runWithTimeout } from '../utils/Utils';
 import { DbtCli } from './DbtCli';
 import { DbtCompileJob } from './DbtCompileJob';
@@ -22,6 +24,7 @@ export class DbtCliCompileJob extends DbtCompileJob {
     private dbtRepository: DbtRepository,
     private allowFallback: boolean,
     private dbtCli: DbtCli,
+    private useTrackManifest: boolean,
   ) {
     super();
   }
@@ -32,7 +35,7 @@ export class DbtCliCompileJob extends DbtCompileJob {
       return ok(undefined);
     }
 
-    const promise = this.dbtCli.compile(this.modelPath);
+    const promise = this.dbtCli.compile(this.modelPath, this.useTrackManifest);
     this.process = promise.child;
 
     try {
@@ -56,13 +59,24 @@ export class DbtCliCompileJob extends DbtCompileJob {
     if (this.modelPath) {
       await this.findResultFromFile(this.modelPath, this.dbtRepository);
     }
+    await this.copyManifest();
+
     return ok(undefined);
+  }
+
+  private async copyManifest(): Promise<void> {
+    const manifestPath = ManifestParser.getManifestPath(this.dbtRepository.dbtTargetPath);
+    const trackManifestPath = ManifestParser.getManifestPath('.dbt-track-manifest');
+
+    await fs.mkdir(path.dirname(trackManifestPath), { recursive: true });
+
+    await fs.copyFile(manifestPath, trackManifestPath);
   }
 
   private async findResultFromFile(modelPath: string, dbtRepository: DbtRepository): Promise<void> {
     try {
       const compiledPath = await DbtCompileJob.findCompiledFilePath(modelPath, dbtRepository);
-      const sql = this.getCompiledSql(compiledPath);
+      const sql = await this.getCompiledSql(compiledPath);
 
       this.result = sql ? ok(sql) : err('Compiled file not found');
     } catch (e) {
@@ -79,9 +93,9 @@ export class DbtCliCompileJob extends DbtCompileJob {
     return this.process?.exitCode === null ? undefined : this.result;
   }
 
-  private getCompiledSql(filePath: string): string | undefined {
+  private async getCompiledSql(filePath: string): Promise<string | undefined> {
     try {
-      return fs.readFileSync(filePath, 'utf8');
+      return await fs.readFile(filePath, 'utf8');
     } catch {
       console.log(`Cannot get compiled sql for ${filePath}`);
       return undefined;
